@@ -5,10 +5,8 @@ import { useBooking } from '../context/BookingContext';
 import type { Room } from '../types';
 import DatePicker from '../components/date-picker';
 import GuestCounter from '../components/guest-counter';
-
-function toIso(isoDate: string): string {
-  return isoDate;
-}
+import LoadingSpinner from '../components/loading-spinner';
+import ErrorMessage from '../components/error-message';
 
 function toApiDate(isoDate: string): string {
   const [y, m, d] = isoDate.split('-');
@@ -29,8 +27,8 @@ export default function SearchPage() {
   const navigate = useNavigate();
   const { setSearchParams, setRooms } = useBooking();
 
-  const [checkIn, setCheckIn] = useState(toIso(todayIso()));
-  const [checkOut, setCheckOut] = useState(toIso(tomorrowIso()));
+  const [checkIn, setCheckIn] = useState(todayIso());
+  const [checkOut, setCheckOut] = useState(tomorrowIso());
   const [guests, setGuests] = useState(2);
   const [hotelName, setHotelName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,9 +80,7 @@ export default function SearchPage() {
 
           <GuestCounter value={guests} onChange={setGuests} disabled={loading} />
 
-          {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
-          )}
+          {error && <ErrorMessage message={error} onRetry={handleSearch} />}
 
           <button
             type="button"
@@ -92,13 +88,14 @@ export default function SearchPage() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {loading && (
-              <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
+            {loading ? (
+              <>
+                <LoadingSpinner size="sm" />
+                Searching...
+              </>
+            ) : (
+              'Search'
             )}
-            {loading ? 'Searching...' : 'Search'}
           </button>
         </div>
       </div>

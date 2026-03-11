@@ -5,6 +5,8 @@ import client from '../api/client';
 import type { GuestData, BookingResponse } from '../types';
 import GuestForm from '../components/guest-form';
 import BookingSummary from '../components/booking-summary';
+import LoadingSpinner from '../components/loading-spinner';
+import ErrorMessage from '../components/error-message';
 
 export default function BookingPage() {
   const { selectedRoom, selectedPlan, searchParams, setGuest } = useBooking();
@@ -78,11 +80,7 @@ export default function BookingPage() {
               </label>
             </div>
 
-            {error && (
-              <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
-                {error}
-              </p>
-            )}
+            {error && <div className="mt-4"><ErrorMessage message={error} /></div>}
 
             <button
               onClick={handleSubmit}
@@ -93,13 +91,14 @@ export default function BookingPage() {
                   : 'bg-gray-300 cursor-not-allowed'
               }`}
             >
-              {loading && (
-                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
+              {loading ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  Отправка...
+                </>
+              ) : (
+                'Забронировать'
               )}
-              {loading ? 'Отправка...' : 'Забронировать'}
             </button>
           </div>
 

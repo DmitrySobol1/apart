@@ -1,9 +1,40 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { BookingProvider, useBooking } from './context/BookingContext';
 import SearchPage from './pages/SearchPage';
 import RoomsPage from './pages/RoomsPage';
 import BookingPage from './pages/BookingPage';
 import ConfirmationPage from './pages/ConfirmationPage';
+
+function useIframeResize() {
+  useEffect(() => {
+    const sendHeight = () => {
+      window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+    };
+
+    const observer = new ResizeObserver(sendHeight);
+    observer.observe(document.body);
+
+    sendHeight();
+
+    return () => observer.disconnect();
+  }, []);
+}
+
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  useIframeResize();
+
+  useEffect(() => {
+    window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+  }, [location.pathname]);
+
+  return (
+    <div key={location.pathname} className="page-enter">
+      {children}
+    </div>
+  );
+}
 
 function GuardedRoute({ children }: { children: JSX.Element }) {
   const { searchParams } = useBooking();
@@ -11,30 +42,38 @@ function GuardedRoute({ children }: { children: JSX.Element }) {
   return children;
 }
 
+function AppRoutes() {
+  return (
+    <PageWrapper>
+      <Routes>
+        <Route path="/" element={<SearchPage />} />
+        <Route
+          path="/rooms"
+          element={
+            <GuardedRoute>
+              <RoomsPage />
+            </GuardedRoute>
+          }
+        />
+        <Route
+          path="/booking"
+          element={
+            <GuardedRoute>
+              <BookingPage />
+            </GuardedRoute>
+          }
+        />
+        <Route path="/confirmation" element={<ConfirmationPage />} />
+      </Routes>
+    </PageWrapper>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <BookingProvider>
-        <Routes>
-          <Route path="/" element={<SearchPage />} />
-          <Route
-            path="/rooms"
-            element={
-              <GuardedRoute>
-                <RoomsPage />
-              </GuardedRoute>
-            }
-          />
-          <Route
-            path="/booking"
-            element={
-              <GuardedRoute>
-                <BookingPage />
-              </GuardedRoute>
-            }
-          />
-          <Route path="/confirmation" element={<ConfirmationPage />} />
-        </Routes>
+        <AppRoutes />
       </BookingProvider>
     </BrowserRouter>
   );
