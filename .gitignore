@@ -1,16 +1,24 @@
 # Ignore everything
 *
 
-# Allow these files
+# Allow these files/directories
 !AGENTS.md
+!CLAUDE.md
+!README.md
+!CHANGELOG.md
+!.gitignore
+!.memory-bank/
+!.memory-bank/**
+!.tasks/
+!.tasks/**
 !fixtures/
 !fixtures/**
 !backend/
-!backend/.env.example
+!backend/**
+!frontend/
+!frontend/**
 
-# === Standard ignores (explicit for when the wildcard rule is relaxed) ===
-
-# Environment
+# Environment files — never commit actual .env
 .env
 .env.*
 !.env.example
