@@ -2,8 +2,11 @@
 *
 
 # Allow these files
-!.gitignore
 !AGENTS.md
+!fixtures/
+!fixtures/**
+!backend/
+!backend/.env.example
 
 # === Standard ignores (explicit for when the wildcard rule is relaxed) ===
 
