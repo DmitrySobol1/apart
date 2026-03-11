@@ -1,0 +1,40 @@
+# Ignore everything
+*
+
+# Allow these files
+!.gitignore
+!AGENTS.md
+
+# === Standard ignores (explicit for when the wildcard rule is relaxed) ===
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.cache/
+.turbo/
+
+# Test / coverage
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
