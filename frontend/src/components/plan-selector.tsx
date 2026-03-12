@@ -1,4 +1,4 @@
-import type { RoomPlan } from '../types';
+import type { RoomPlan } from "../types";
 
 interface PlanSelectorProps {
   plans: Record<string, RoomPlan>;

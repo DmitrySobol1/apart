@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { RoomPhoto } from '../types';
+import { useState } from "react";
+import type { RoomPhoto } from "../types";
 
 interface PhotoGalleryProps {
   photos: RoomPhoto[];
@@ -22,11 +22,7 @@ export default function PhotoGallery({ photos }: PhotoGalleryProps) {
 
   return (
     <div className="relative w-64 h-48 shrink-0 rounded-lg overflow-hidden group">
-      <img
-        src={sorted[index].url}
-        alt=""
-        className="w-full h-full object-cover"
-      />
+      <img src={sorted[index].url} alt="" className="w-full h-full object-cover" />
       {sorted.length > 1 && (
         <>
           <button
@@ -47,7 +43,7 @@ export default function PhotoGallery({ photos }: PhotoGalleryProps) {
             {sorted.map((_, i) => (
               <span
                 key={i}
-                className={`block w-1.5 h-1.5 rounded-full ${i === index ? 'bg-white' : 'bg-white/50'}`}
+                className={`block w-1.5 h-1.5 rounded-full ${i === index ? "bg-white" : "bg-white/50"}`}
               />
             ))}
           </div>

@@ -1,4 +1,4 @@
-import type { Room, RoomPlan, SearchParams } from '../types';
+import type { Room, RoomPlan, SearchParams } from "../types";
 
 interface BookingSummaryProps {
   room: Room;
@@ -7,7 +7,7 @@ interface BookingSummaryProps {
 }
 
 function formatDate(ddmmyyyy: string): string {
-  const [d, m, y] = ddmmyyyy.split('-');
+  const [d, m, y] = ddmmyyyy.split("-");
   return `${d}.${m}.${y}`;
 }
 
@@ -16,13 +16,7 @@ export default function BookingSummary({ room, plan, searchParams }: BookingSumm
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      {photo && (
-        <img
-          src={photo.url}
-          alt={room.name_ru}
-          className="w-full h-48 object-cover"
-        />
-      )}
+      {photo && <img src={photo.url} alt={room.name_ru} className="w-full h-48 object-cover" />}
       <div className="p-4 flex flex-col gap-3">
         <h3 className="font-semibold text-gray-900 text-base">{room.name_ru}</h3>
 
@@ -48,7 +42,9 @@ export default function BookingSummary({ room, plan, searchParams }: BookingSumm
 
         <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
           <span className="text-sm text-gray-600">Итого</span>
-          <span className="text-lg font-bold text-gray-900">{plan.price.toLocaleString('ru-RU')} ₽</span>
+          <span className="text-lg font-bold text-gray-900">
+            {plan.price.toLocaleString("ru-RU")} ₽
+          </span>
         </div>
       </div>
     </div>

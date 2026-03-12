@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import axios from 'axios';
+import { Request, Response, NextFunction } from "express";
+import axios from "axios";
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -9,18 +9,18 @@ export function errorHandler(
   err: AppError,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  _next: NextFunction
 ): void {
   const timestamp = new Date().toISOString();
 
   if (axios.isAxiosError(err)) {
-    if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+    if (err.code === "ECONNABORTED" || err.message.includes("timeout")) {
       console.error(`[${timestamp}] Upstream API timeout:`, err.message);
-      res.status(504).json({ error: 'Upstream API timeout' });
+      res.status(504).json({ error: "Upstream API timeout" });
       return;
     }
     console.error(`[${timestamp}] Upstream API error:`, err.message);
-    res.status(502).json({ error: 'Upstream API error' });
+    res.status(502).json({ error: "Upstream API error" });
     return;
   }
 

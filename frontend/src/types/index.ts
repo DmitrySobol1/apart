@@ -35,7 +35,7 @@ export interface Room {
 export interface AmenityDefinition {
   name_ru: string;
   name_en: string;
-  type: 'bool' | 'int';
+  type: "bool" | "int";
   unit: string;
   icon: string;
 }
@@ -49,7 +49,7 @@ export interface Amenity {
   id: string;
   name_ru: string;
   name_en: string;
-  type: 'bool' | 'int';
+  type: "bool" | "int";
   unit: string;
   icon: string;
 }

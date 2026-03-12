@@ -1,9 +1,9 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 const configSchema = z.object({
   port: z.coerce.number().default(3000),
-  nodeEnv: z.string().default('development'),
-  frontendUrl: z.string().default('http://localhost:5173'),
+  nodeEnv: z.string().default("development"),
+  frontendUrl: z.string().default("http://localhost:5173"),
   bnovo: z.object({
     uid: z.string().min(1),
     accountId: z.string().min(1),

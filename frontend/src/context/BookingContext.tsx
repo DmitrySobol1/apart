@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import type { Room, RoomPlan, GuestData, SearchParams } from '../types';
+import { createContext, useContext, useState, ReactNode } from "react";
+import type { Room, RoomPlan, GuestData, SearchParams } from "../types";
 
 interface BookingState {
   searchParams: SearchParams | null;
@@ -36,17 +36,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const setSearchParams = (params: SearchParams) =>
     setState((prev) => ({ ...prev, searchParams: params }));
 
-  const setRooms = (rooms: Room[]) =>
-    setState((prev) => ({ ...prev, rooms }));
+  const setRooms = (rooms: Room[]) => setState((prev) => ({ ...prev, rooms }));
 
-  const selectRoom = (room: Room) =>
-    setState((prev) => ({ ...prev, selectedRoom: room }));
+  const selectRoom = (room: Room) => setState((prev) => ({ ...prev, selectedRoom: room }));
 
-  const selectPlan = (plan: RoomPlan) =>
-    setState((prev) => ({ ...prev, selectedPlan: plan }));
+  const selectPlan = (plan: RoomPlan) => setState((prev) => ({ ...prev, selectedPlan: plan }));
 
-  const setGuest = (guest: GuestData) =>
-    setState((prev) => ({ ...prev, guest }));
+  const setGuest = (guest: GuestData) => setState((prev) => ({ ...prev, guest }));
 
   const reset = () => setState(initialState);
 
@@ -61,6 +57,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
 export function useBooking(): BookingContextValue {
   const ctx = useContext(BookingContext);
-  if (!ctx) throw new Error('useBooking must be used within BookingProvider');
+  if (!ctx) throw new Error("useBooking must be used within BookingProvider");
   return ctx;
 }

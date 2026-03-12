@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { Room, Amenity } from '../types';
-import { useBooking } from '../context/BookingContext';
-import PhotoGallery from './photo-gallery';
-import AmenityList from './amenity-list';
-import PlanSelector from './plan-selector';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { Room, Amenity } from "../types";
+import { useBooking } from "../context/BookingContext";
+import PhotoGallery from "./photo-gallery";
+import AmenityList from "./amenity-list";
+import PlanSelector from "./plan-selector";
 
 interface RoomCardProps {
   room: Room;
@@ -12,7 +12,7 @@ interface RoomCardProps {
 }
 
 function getFirstPlanId(room: Room): string {
-  return Object.keys(room.plans)[0] ?? '';
+  return Object.keys(room.plans)[0] ?? "";
 }
 
 export default function RoomCard({ room, amenityDefs }: RoomCardProps) {
@@ -26,7 +26,7 @@ export default function RoomCard({ room, amenityDefs }: RoomCardProps) {
     if (!plan) return;
     selectRoom(room);
     selectPlan(plan);
-    navigate('/booking');
+    navigate("/booking");
   }
 
   return (
@@ -53,7 +53,7 @@ export default function RoomCard({ room, amenityDefs }: RoomCardProps) {
             />
             {plan && (
               <div className="text-xl font-bold text-gray-900">
-                {plan.price.toLocaleString('ru-RU')} ₽
+                {plan.price.toLocaleString("ru-RU")} ₽
               </div>
             )}
           </div>

@@ -31,7 +31,7 @@ export default function DatePicker({ checkIn, checkOut, onChange, disabled }: Da
   return (
     <div className="flex gap-4">
       <div className="flex-1">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Заезд</label>
         <input
           type="date"
           value={toDateInputValue(checkIn)}
@@ -42,7 +42,7 @@ export default function DatePicker({ checkIn, checkOut, onChange, disabled }: Da
         />
       </div>
       <div className="flex-1">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Выезд</label>
         <input
           type="date"
           value={toDateInputValue(checkOut)}

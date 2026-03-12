@@ -1,13 +1,17 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import App from './App';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
 
-const rootEl = document.getElementById('root');
-if (!rootEl) throw new Error('Root element not found');
+if (window.self !== window.top) {
+  document.body.classList.add("in-iframe");
+}
+
+const rootEl = document.getElementById("root");
+if (!rootEl) throw new Error("Root element not found");
 
 createRoot(rootEl).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 );

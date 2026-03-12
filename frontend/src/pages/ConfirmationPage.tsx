@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom';
-import { useBooking } from '../context/BookingContext';
+import { useNavigate } from "react-router-dom";
+import { useBooking } from "../context/BookingContext";
 
 function formatDate(ddmmyyyy: string): string {
-  const [d, m, y] = ddmmyyyy.split('-');
+  const [d, m, y] = ddmmyyyy.split("-");
   return `${d}.${m}.${y}`;
 }
 
@@ -12,14 +12,19 @@ export default function ConfirmationPage() {
 
   const handleBackToSearch = () => {
     reset();
-    navigate('/');
+    navigate("/");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="bg-gray-50 flex items-center justify-center p-6 py-12">
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8 max-w-md w-full text-center">
         <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-8 h-8 text-green-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -46,7 +51,9 @@ export default function ConfirmationPage() {
             {guest && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Гость</span>
-                <span className="font-medium">{guest.name} {guest.surname}</span>
+                <span className="font-medium">
+                  {guest.name} {guest.surname}
+                </span>
               </div>
             )}
           </div>

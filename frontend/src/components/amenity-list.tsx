@@ -1,4 +1,4 @@
-import type { Amenity } from '../types';
+import type { Amenity } from "../types";
 
 interface AmenityListProps {
   amenityIds: Record<string, { value: string }>;
@@ -10,9 +10,10 @@ export default function AmenityList({ amenityIds, definitions }: AmenityListProp
     .map(([id, data]) => {
       const def = definitions[id];
       if (!def) return null;
-      const label = def.type === 'int' && data.value
-        ? `${def.name_ru}: ${data.value}${def.unit === 'm2' ? ' м²' : ''}`
-        : def.name_ru;
+      const label =
+        def.type === "int" && data.value
+          ? `${def.name_ru}: ${data.value}${def.unit === "m2" ? " м²" : ""}`
+          : def.name_ru;
       return { id, label, icon: def.icon };
     })
     .filter((item): item is { id: string; label: string; icon: string } => item !== null);

@@ -1,0 +1,62 @@
+import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import client from "../api/client";
+import { useBooking } from "../context/BookingContext";
+import DatePicker from "../components/date-picker";
+import GuestCounter from "../components/guest-counter";
+import LoadingSpinner from "../components/loading-spinner";
+import ErrorMessage from "../components/error-message";
+function toApiDate(isoDate) {
+    const [y, m, d] = isoDate.split("-");
+    return `${d}-${m}-${y}`;
+}
+function todayIso() {
+    return new Date().toISOString().slice(0, 10);
+}
+function tomorrowIso() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+}
+export default function SearchPage() {
+    const navigate = useNavigate();
+    const { setSearchParams, setRooms } = useBooking();
+    const [checkIn, setCheckIn] = useState(todayIso());
+    const [checkOut, setCheckOut] = useState(tomorrowIso());
+    const [guests, setGuests] = useState(2);
+    const [hotelName, setHotelName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    useEffect(() => {
+        client
+            .get("/account")
+            .then((res) => {
+            setHotelName(res.data.name);
+        })
+            .catch(() => { });
+    }, []);
+    function handleDatesChange(newCheckIn, newCheckOut) {
+        setCheckIn(newCheckIn);
+        setCheckOut(newCheckOut);
+    }
+    async function handleSearch() {
+        setLoading(true);
+        setError(null);
+        try {
+            const dfrom = toApiDate(checkIn);
+            const dto = toApiDate(checkOut);
+            const res = await client.get("/rooms", { params: { dfrom, dto } });
+            setSearchParams({ dfrom, dto, adults: guests });
+            setRooms(res.data);
+            navigate("/rooms");
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load rooms. Please try again.");
+        }
+        finally {
+            setLoading(false);
+        }
+    }
+    return (_jsx("div", { className: "bg-gray-50 flex items-center justify-center p-4 py-12", children: _jsxs("div", { className: "bg-white rounded-xl shadow-md w-full max-w-md p-8", children: [hotelName && (_jsx("h1", { className: "text-2xl font-semibold text-gray-900 text-center mb-6", children: hotelName })), _jsxs("div", { className: "space-y-5", children: [_jsx(DatePicker, { checkIn: checkIn, checkOut: checkOut, onChange: handleDatesChange, disabled: loading }), _jsx(GuestCounter, { value: guests, onChange: setGuests, disabled: loading }), error && _jsx(ErrorMessage, { message: error, onRetry: handleSearch }), _jsx("button", { type: "button", onClick: handleSearch, disabled: loading, className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2", children: loading ? (_jsxs(_Fragment, { children: [_jsx(LoadingSpinner, { size: "sm" }), "Searching..."] })) : ("Search") })] })] }) }));
+}

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import client from '../api/client';
-import { useBooking } from '../context/BookingContext';
-import type { Room } from '../types';
-import DatePicker from '../components/date-picker';
-import GuestCounter from '../components/guest-counter';
-import LoadingSpinner from '../components/loading-spinner';
-import ErrorMessage from '../components/error-message';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import client from "../api/client";
+import { useBooking } from "../context/BookingContext";
+import type { Room } from "../types";
+import DatePicker from "../components/date-picker";
+import GuestCounter from "../components/guest-counter";
+import LoadingSpinner from "../components/loading-spinner";
+import ErrorMessage from "../components/error-message";
 
 function toApiDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-');
+  const [y, m, d] = isoDate.split("-");
   return `${d}-${m}-${y}`;
 }
 
@@ -30,14 +30,17 @@ export default function SearchPage() {
   const [checkIn, setCheckIn] = useState(todayIso());
   const [checkOut, setCheckOut] = useState(tomorrowIso());
   const [guests, setGuests] = useState(2);
-  const [hotelName, setHotelName] = useState('');
+  const [hotelName, setHotelName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    client.get<{ name: string }>('/account').then((res) => {
-      setHotelName(res.data.name);
-    }).catch(() => {});
+    client
+      .get<{ name: string }>("/account")
+      .then((res) => {
+        setHotelName(res.data.name);
+      })
+      .catch(() => {});
   }, []);
 
   function handleDatesChange(newCheckIn: string, newCheckOut: string) {
@@ -52,19 +55,19 @@ export default function SearchPage() {
     try {
       const dfrom = toApiDate(checkIn);
       const dto = toApiDate(checkOut);
-      const res = await client.get<Room[]>('/rooms', { params: { dfrom, dto } });
+      const res = await client.get<Room[]>("/rooms", { params: { dfrom, dto } });
       setSearchParams({ dfrom, dto, adults: guests });
       setRooms(res.data);
-      navigate('/rooms');
+      navigate("/rooms");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load rooms. Please try again.');
+      setError(err instanceof Error ? err.message : "Failed to load rooms. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="bg-gray-50 flex items-center justify-center p-4 py-12">
       <div className="bg-white rounded-xl shadow-md w-full max-w-md p-8">
         {hotelName && (
           <h1 className="text-2xl font-semibold text-gray-900 text-center mb-6">{hotelName}</h1>
@@ -94,7 +97,7 @@ export default function SearchPage() {
                 Searching...
               </>
             ) : (
-              'Search'
+              "Search"
             )}
           </button>
         </div>

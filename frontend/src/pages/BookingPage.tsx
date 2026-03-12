@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useBooking } from '../context/BookingContext';
-import client from '../api/client';
-import type { GuestData, BookingResponse } from '../types';
-import GuestForm from '../components/guest-form';
-import BookingSummary from '../components/booking-summary';
-import LoadingSpinner from '../components/loading-spinner';
-import ErrorMessage from '../components/error-message';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useBooking } from "../context/BookingContext";
+import client from "../api/client";
+import type { GuestData, BookingResponse } from "../types";
+import GuestForm from "../components/guest-form";
+import BookingSummary from "../components/booking-summary";
+import LoadingSpinner from "../components/loading-spinner";
+import ErrorMessage from "../components/error-message";
 
 export default function BookingPage() {
   const { selectedRoom, selectedPlan, searchParams, setGuest } = useBooking();
@@ -34,7 +34,7 @@ export default function BookingPage() {
     setLoading(true);
     setError(null);
     try {
-      await client.post<BookingResponse>('/booking', {
+      await client.post<BookingResponse>("/booking", {
         dfrom: searchParams.dfrom,
         dto: searchParams.dto,
         planId: selectedPlan.id,
@@ -43,16 +43,16 @@ export default function BookingPage() {
         guest: guestData,
       });
       setGuest(guestData);
-      navigate('/confirmation');
+      navigate("/confirmation");
     } catch {
-      setError('Booking request failed. Please try again.');
+      setError("Booking request failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900">Оформление бронирования</h1>
@@ -80,15 +80,19 @@ export default function BookingPage() {
               </label>
             </div>
 
-            {error && <div className="mt-4"><ErrorMessage message={error} /></div>}
+            {error && (
+              <div className="mt-4">
+                <ErrorMessage message={error} />
+              </div>
+            )}
 
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
               className={`mt-6 w-full py-3 rounded-lg text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
                 canSubmit
-                  ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-                  : 'bg-gray-300 cursor-not-allowed'
+                  ? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                  : "bg-gray-300 cursor-not-allowed"
               }`}
             >
               {loading ? (
@@ -97,7 +101,7 @@ export default function BookingPage() {
                   Отправка...
                 </>
               ) : (
-                'Забронировать'
+                "Забронировать"
               )}
             </button>
           </div>

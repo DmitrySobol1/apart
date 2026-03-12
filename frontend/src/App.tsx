@@ -1,19 +1,22 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { BookingProvider, useBooking } from './context/BookingContext';
-import SearchPage from './pages/SearchPage';
-import RoomsPage from './pages/RoomsPage';
-import BookingPage from './pages/BookingPage';
-import ConfirmationPage from './pages/ConfirmationPage';
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BookingProvider, useBooking } from "./context/BookingContext";
+import SearchPage from "./pages/SearchPage";
+import RoomsPage from "./pages/RoomsPage";
+import BookingPage from "./pages/BookingPage";
+import ConfirmationPage from "./pages/ConfirmationPage";
 
 function useIframeResize() {
   useEffect(() => {
+    const root = document.getElementById("root");
+    if (!root) return;
+
     const sendHeight = () => {
-      window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+      window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
     };
 
     const observer = new ResizeObserver(sendHeight);
-    observer.observe(document.body);
+    observer.observe(root);
 
     sendHeight();
 
@@ -26,7 +29,12 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
   useIframeResize();
 
   useEffect(() => {
-    window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+    window.scrollTo(0, 0);
+    const root = document.getElementById("root");
+    if (root) {
+      window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
+    }
+    window.parent.postMessage({ type: "scrollToWidget" }, "*");
   }, [location.pathname]);
 
   return (

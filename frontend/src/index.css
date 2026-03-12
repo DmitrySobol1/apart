@@ -4,6 +4,9 @@
 
 @layer base {
   body {
+    overflow: auto;
+  }
+  body.in-iframe {
     overflow: hidden;
   }
 }

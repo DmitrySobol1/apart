@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useBooking } from '../context/BookingContext';
-import client from '../api/client';
-import type { Amenity, AmenityGroup, Room } from '../types';
-import RoomCard from '../components/room-card';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useBooking } from "../context/BookingContext";
+import client from "../api/client";
+import type { Amenity, AmenityGroup, Room } from "../types";
+import RoomCard from "../components/room-card";
 
 function flattenAmenities(groups: Record<string, AmenityGroup>): Record<string, Amenity> {
   const result: Record<string, Amenity> = {};
@@ -21,7 +21,7 @@ function getMinPrice(room: Room): number {
 }
 
 function formatApiDate(apiDate: string): string {
-  const [d, m, y] = apiDate.split('-');
+  const [d, m, y] = apiDate.split("-");
   return `${d}.${m}.${y}`;
 }
 
@@ -31,7 +31,7 @@ export default function RoomsPage() {
 
   useEffect(() => {
     client
-      .get<{ amenities: Record<string, AmenityGroup> }>('/amenities')
+      .get<{ amenities: Record<string, AmenityGroup> }>("/amenities")
       .then((res) => setAmenityDefs(flattenAmenities(res.data.amenities)))
       .catch(() => {});
   }, []);
@@ -43,15 +43,15 @@ export default function RoomsPage() {
     .sort((a, b) => getMinPrice(a) - getMinPrice(b));
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <p className="text-sm text-gray-600">
               Заезд: <strong>{formatApiDate(searchParams.dfrom)}</strong>
-              {' · '}
+              {" · "}
               Выезд: <strong>{formatApiDate(searchParams.dto)}</strong>
-              {' · '}
+              {" · "}
               Гостей: <strong>{searchParams.adults}</strong>
             </p>
           </div>

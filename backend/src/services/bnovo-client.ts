@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { config } from '../config';
+import axios from "axios";
+import { config } from "../config";
 
 const client = axios.create({
   baseURL: config.bnovo.apiBase,
@@ -8,19 +8,19 @@ const client = axios.create({
 
 export const bnovoClient = {
   getRooms: (dfrom: string, dto: string) =>
-    client.get('/rooms', {
+    client.get("/rooms", {
       params: { account_id: config.bnovo.accountId, dfrom, dto },
     }),
 
   getPlans: () =>
-    client.get('/plans', {
+    client.get("/plans", {
       params: { account_id: config.bnovo.accountId },
     }),
 
-  getAmenities: () => client.get('/amenities'),
+  getAmenities: () => client.get("/amenities"),
 
   getAccount: () =>
-    client.get('/accounts', {
+    client.get("/accounts", {
       params: { uid: config.bnovo.uid },
     }),
 };

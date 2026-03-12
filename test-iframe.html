@@ -29,8 +29,12 @@
   <script>
     var iframe = document.getElementById('widget');
     window.addEventListener('message', function (event) {
-      if (event.data && event.data.type === 'resize' && typeof event.data.height === 'number') {
+      if (!event.data) return;
+      if (event.data.type === 'resize' && typeof event.data.height === 'number') {
         iframe.style.height = event.data.height + 'px';
+      }
+      if (event.data.type === 'scrollToWidget') {
+        iframe.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   </script>
