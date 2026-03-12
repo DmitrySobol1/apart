@@ -2,21 +2,23 @@
 *
 
 # Allow these files/directories
-!AGENTS.md
-!CLAUDE.md
-!README.md
-!CHANGELOG.md
-!.gitignore
-!.memory-bank/
-!.memory-bank/**
-!.tasks/
-!.tasks/**
-!fixtures/
-!fixtures/**
 !backend/
 !backend/**
 !frontend/
 !frontend/**
+
+# AI FILES
+AGENTS.md
+CLAUDE.md
+README.md
+CHANGELOG.md
+.gitignore
+.memory-bank/
+.memory-bank/**
+.tasks/
+.tasks/**
+fixtures/
+fixtures/**
 
 # Environment files — never commit actual .env
 .env
