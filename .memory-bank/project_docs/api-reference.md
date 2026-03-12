@@ -1,7 +1,7 @@
 ---
 description: Backend API endpoint reference for the Apart-NN booking widget
 status: current
-version: 1.0.0
+version: 1.1.0
 ---
 
 # API Reference — Apart-NN Backend
@@ -40,51 +40,51 @@ Fetches available room types from Bnovo for the given date range. Results are ca
 - Both `dfrom` and `dto` must match the regex `^\d{2}-\d{2}-\d{4}$`
 - `dto` must be strictly after `dfrom`
 
-**Response 200** — Bnovo `/rooms` response passed through as-is. Top-level structure:
+**Response 200** — A plain JSON array of room objects (the backend unwraps the Bnovo `{"rooms": [...]}` envelope before responding):
 
 ```json
-{
-  "rooms": [
-    {
-      "id": "274552",
-      "name": "Студия",
-      "name_ru": "Студия",
-      "description_ru": "...",
-      "adults": 2,
-      "children": 0,
-      "available": 3,
-      "order": 1,
-      "photos": [
-        {
-          "id": 1568114,
-          "order": 0,
-          "url": "https://storage.reservationsteps.ru/hash_1050x600.jpg",
-          "thumb": "https://storage.reservationsteps.ru/hash_1050x600.jpg",
-          "original_url": "https://storage.reservationsteps.ru/hash.jpg",
-          "roomtype_id": "274552"
-        }
-      ],
-      "amenities": {
-        "1": { "value": "32" },
-        "8": { "value": "" }
-      },
-      "plans": {
-        "536495": {
-          "id": 536495,
-          "name": "Невозвратный",
-          "name_ru": null,
-          "cancellation_rules": "...",
-          "enabled": 1,
-          "prices": { "2026-03-01": "2800.00", "2026-03-02": "2800.00" },
-          "price": 5600
-        }
+[
+  {
+    "id": "274552",
+    "name": "Студия",
+    "name_ru": "Студия",
+    "description_ru": "...",
+    "adults": 2,
+    "children": 0,
+    "available": 3,
+    "order": 1,
+    "photos": [
+      {
+        "id": 1568114,
+        "order": 0,
+        "url": "https://storage.reservationsteps.ru/hash_1050x600.jpg",
+        "thumb": "https://storage.reservationsteps.ru/hash_1050x600.jpg",
+        "original_url": "https://storage.reservationsteps.ru/hash.jpg",
+        "roomtype_id": "274552"
+      }
+    ],
+    "amenities": {
+      "1": { "value": "32" },
+      "8": { "value": "" }
+    },
+    "plans": {
+      "536495": {
+        "id": 536495,
+        "name": "Невозвратный",
+        "name_ru": null,
+        "cancellation_rules": "...",
+        "enabled": 1,
+        "prices": { "2026-03-01": "2800.00", "2026-03-02": "2800.00" },
+        "price": 5600
       }
     }
-  ]
-}
+  }
+]
 ```
 
 Note: `/rooms` only returns room types with `available > 0` for the requested dates. Rooms with zero availability are absent from the response entirely.
+
+**Implementation note:** The Bnovo upstream API returns `{"rooms": [...]}`. The backend route (`backend/src/routes/rooms.ts`) unwraps this to `response.data.rooms ?? []` before caching and sending to the frontend. The frontend receives and stores a plain array.
 
 **Caching:** In-memory, keyed by `dfrom+dto`, TTL 5 minutes. Cache is per server process (resets on restart).
 
@@ -180,23 +180,23 @@ curl "http://localhost:3000/api/amenities"
 
 Returns hotel account information. No query parameters. Uses `BNOVO_UID` from env internally.
 
-**Response 200:**
+**Response 200** — A flat account object (the backend unwraps the Bnovo `{"account": {...}}` envelope before responding):
 ```json
 {
-  "account": {
-    "name": "Апарт отель - 9 ночей Нижний Новгород",
-    "phone": "...",
-    "email": "...",
-    "address": "...",
-    "checkin": "14:00",
-    "checkout": "12:00",
-    "currency": { "iso_4217": "RUB", "sign": "₽" },
-    "website": "https://apart-nn.ru/"
-  }
+  "name": "Апарт отель - 9 ночей Нижний Новгород",
+  "phone": "...",
+  "email": "...",
+  "address": "...",
+  "checkin": "14:00",
+  "checkout": "12:00",
+  "currency": { "iso_4217": "RUB", "sign": "₽" },
+  "website": "https://apart-nn.ru/"
 }
 ```
 
-The `SearchPage` uses this endpoint to display the hotel name at the top of the search form.
+The `SearchPage` uses this endpoint to display the hotel name at the top of the search form. It reads `res.data.name` directly from the flat object.
+
+**Implementation note:** The Bnovo upstream API returns `{"account": {...}}`. The backend route (`backend/src/routes/account.ts`) unwraps this to `response.data.account ?? response.data` before responding.
 
 **Error responses:** 502 (upstream error), 504 (timeout).
 
@@ -385,7 +385,7 @@ interface BookingResponse {
 Базовый URL в разработке: `http://localhost:3000`.
 
 ### GET /api/rooms
-Возвращает доступные типы номеров из Bnovo для указанного диапазона дат. Параметры: `dfrom` и `dto` в формате `DD-MM-YYYY`. Кэш: 5 минут (in-memory, ключ dfrom+dto). Ошибки: 400 (неверный формат/порядок дат), 502 (ошибка Bnovo), 504 (таймаут Bnovo).
+Возвращает доступные типы номеров из Bnovo для указанного диапазона дат. Параметры: `dfrom` и `dto` в формате `DD-MM-YYYY`. Кэш: 5 минут (in-memory, ключ dfrom+dto). Ошибки: 400 (неверный формат/порядок дат), 502 (ошибка Bnovo), 504 (таймаут Bnovo). **Ответ — простой массив `[...]`** (бэкенд распаковывает обёртку `{"rooms": [...]}` от Bnovo перед отправкой клиенту).
 
 ### GET /api/plans
 Метаданные тарифных планов. Цен не содержит (цены встроены в ответ /api/rooms).
@@ -394,7 +394,7 @@ interface BookingResponse {
 Определения удобств, двухуровневая структура (группы → удобства). Нужен для отображения названий и иконок удобств в карточках номеров.
 
 ### GET /api/account
-Информация об отеле (название, контакты, время заезда/выезда). Используется на странице поиска.
+Информация об отеле (название, контакты, время заезда/выезда). Используется на странице поиска. **Ответ — плоский объект** (бэкенд распаковывает обёртку `{"account": {...}}` от Bnovo). Фронтенд читает `res.data.name` напрямую.
 
 ### POST /api/booking
 Принимает данные бронирования, валидирует с помощью Zod, логирует в консоль, возвращает `{ success: true, message: "Request accepted" }`. MVP-заглушка — реального бронирования в Bnovo не создаёт. Формат телефона: `+7XXXXXXXXXX`.

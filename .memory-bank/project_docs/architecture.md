@@ -1,7 +1,7 @@
 ---
 description: System architecture overview for the Apart-NN booking widget (task-1 MVP)
 status: current
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Architecture — Apart-NN Booking Widget
@@ -132,7 +132,8 @@ User fills dates + guests → clicks "Search"
     → Backend validates dates (format, dto > dfrom)
     → Checks in-memory cache (key: dfrom+dto, TTL: 5 min)
     → If miss: GET public-api.reservationsteps.ru/v1/api/rooms?account_id=...&dfrom=...&dto=...
-    → Returns rooms[] array
+    → Unwraps response.data.rooms (Bnovo returns {"rooms": [...]}, backend strips the envelope)
+    → Returns rooms[] array directly
   → BookingContext stores { searchParams, rooms }
   → Navigate to /rooms
   → RoomsPage filters: available > 0 && adults >= searchParams.adults
@@ -166,13 +167,24 @@ User clicks "Забронировать" on a RoomCard
 
 The widget runs inside an `<iframe>` element. To prevent double scrollbars and fit the iframe to its content, the widget sends `postMessage` events to the parent page.
 
+**Iframe detection** (`main.tsx`):
+```tsx
+if (window.self !== window.top) {
+  document.body.classList.add("in-iframe");
+}
+```
+The `in-iframe` class is added to `<body>` when the widget runs inside an iframe. This activates `overflow: hidden` on the body (defined in `index.css`), letting the parent page own the scroll. When accessed directly in a browser, the class is absent and `overflow: auto` applies (normal scrolling).
+
 **Widget side** (`App.tsx`):
 ```
 useIframeResize() hook:
-  - Creates a ResizeObserver on document.body
-  - On any body size change: postMessage({ type: "resize", height: document.body.scrollHeight }, "*")
-  - Also fires on route change (via useLocation)
+  - Creates a ResizeObserver on the #root element (not document.body)
+  - On any #root size change: postMessage({ type: "resize", height: root.scrollHeight }, "*")
+  - Also fires on route change (via useLocation), plus window.scrollTo(0, 0)
+  - On route change: also sends postMessage({ type: "scrollToWidget" }, "*")
 ```
+
+Observing `#root` (actual content height) instead of `document.body` is critical: in an iframe, `body.scrollHeight` equals the iframe's current height, which creates a runaway feedback loop. `root.scrollHeight` reflects the real rendered content size.
 
 **Parent page** (`test-iframe.html`):
 ```html
@@ -182,11 +194,16 @@ useIframeResize() hook:
     if (event.data?.type === 'resize') {
       iframe.style.height = event.data.height + 'px';
     }
+    if (event.data?.type === 'scrollToWidget') {
+      iframe.scrollIntoView({ behavior: 'smooth' });
+    }
   });
 </script>
 ```
 
 The iframe has no fixed height set in HTML. The parent script sets `height` dynamically from messages. This eliminates iframe scrollbars while the parent page scrolls normally.
+
+**Page height behaviour:** All pages (`SearchPage`, `RoomsPage`, `BookingPage`, `ConfirmationPage`) do **not** use Tailwind's `min-h-screen`. Inside an iframe, `100vh` equals the iframe height, which would prevent the iframe from shrinking when navigating to shorter pages. Page content determines its own height via padding only.
 
 ---
 
@@ -217,13 +234,17 @@ The iframe has no fixed height set in HTML. The parent script sets `height` dyna
 
 ## Поток данных
 
-**Поиск:** Пользователь вводит даты и количество гостей → фронтенд конвертирует даты в формат DD-MM-YYYY → GET /api/rooms → бэкенд проверяет кэш (5 мин, ключ dfrom+dto) → запрашивает Bnovo API → возвращает массив номеров → фронтенд фильтрует и сортирует.
+**Поиск:** Пользователь вводит даты и количество гостей → фронтенд конвертирует даты в формат DD-MM-YYYY → GET /api/rooms → бэкенд проверяет кэш (5 мин, ключ dfrom+dto) → запрашивает Bnovo API → распаковывает `response.data.rooms` (Bnovo возвращает `{"rooms": [...]}`, бэкенд отдаёт только массив) → возвращает массив номеров → фронтенд фильтрует и сортирует.
 
 **Бронирование:** Пользователь выбирает номер → заполняет форму гостя → нажимает «Забронировать» → POST /api/booking → бэкенд валидирует (Zod) и логирует → возвращает `{ success: true }` → фронтенд показывает страницу подтверждения.
 
 ## Интеграция iframe
 
-Виджет отправляет `postMessage({ type: "resize", height })` родительской странице при каждом изменении размера. Родительская страница устанавливает высоту iframe по этим сообщениям, исключая двойной скролл.
+При запуске внутри iframe `main.tsx` добавляет класс `in-iframe` к `<body>`, что активирует `overflow: hidden` через CSS (`index.css`). При прямом доступе в браузере класс отсутствует и скролл работает штатно.
+
+Хук `useIframeResize` в `App.tsx` наблюдает за элементом `#root` (не за `body`) через `ResizeObserver` и отправляет `postMessage({ type: "resize", height: root.scrollHeight })` при каждом изменении размера контента. При смене маршрута дополнительно отправляется `postMessage({ type: "scrollToWidget" })`. Родительская страница слушает оба типа сообщений: `resize` — устанавливает высоту iframe, `scrollToWidget` — прокручивает к виджету.
+
+Все страницы не используют `min-h-screen` — иначе внутри iframe высота привязывалась бы к viewport и iframe не мог уменьшаться при переходе на более короткие страницы.
 
 ## Безопасность
 

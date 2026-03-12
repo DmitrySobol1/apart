@@ -1,7 +1,7 @@
 ---
 description: Frontend component hierarchy, state management, routing, and styling reference
 status: current
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Frontend Guide — Apart-NN Booking Widget
@@ -328,31 +328,67 @@ Desktop-only layout for MVP. No responsive breakpoints implemented.
 
 ## iframe Auto-Height Hook
 
-Defined in `src/App.tsx` as `useIframeResize()`:
+Defined in `src/App.tsx` as `useIframeResize()`. The hook observes the `#root` element (not `document.body`) to get the true rendered content height:
 
 ```typescript
 function useIframeResize() {
   useEffect(() => {
+    const root = document.getElementById("root");
+    if (!root) return;
+
     const sendHeight = () => {
-      window.parent.postMessage(
-        { type: "resize", height: document.body.scrollHeight },
-        "*"
-      );
+      window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
     };
+
     const observer = new ResizeObserver(sendHeight);
-    observer.observe(document.body);
+    observer.observe(root);
     sendHeight();
     return () => observer.disconnect();
   }, []);
 }
 ```
 
-`PageWrapper` also fires a resize message on every route change:
+**Why `#root`, not `document.body`:** Inside an iframe, `body.scrollHeight` equals the current iframe viewport height, creating a feedback loop where the iframe grows endlessly. `root.scrollHeight` reflects only the actual rendered content height.
+
+`PageWrapper` fires additional messages on every route change:
 ```typescript
 useEffect(() => {
-  window.parent.postMessage({ type: "resize", height: document.body.scrollHeight }, "*");
+  window.scrollTo(0, 0);
+  const root = document.getElementById("root");
+  if (root) {
+    window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
+  }
+  window.parent.postMessage({ type: "scrollToWidget" }, "*");
 }, [location.pathname]);
 ```
+
+The `scrollToWidget` message instructs the parent page to scroll the iframe into view when the user navigates between steps.
+
+## Iframe Detection and Body Overflow
+
+File: `src/main.tsx`
+
+Before mounting React, `main.tsx` detects whether the app is running inside an iframe:
+
+```tsx
+if (window.self !== window.top) {
+  document.body.classList.add("in-iframe");
+}
+```
+
+File: `src/index.css`
+
+The `in-iframe` class controls overflow behaviour:
+```css
+body { overflow: auto; }
+body.in-iframe { overflow: hidden; }
+```
+
+When accessed directly in a browser, `overflow: auto` allows normal mouse-wheel scrolling. When embedded in an iframe, `overflow: hidden` prevents the widget from rendering its own scrollbar — the parent page handles scrolling.
+
+## Page Height Constraints
+
+None of the page components (`SearchPage`, `RoomsPage`, `BookingPage`, `ConfirmationPage`) use Tailwind's `min-h-screen` class. Inside an iframe, `100vh` = the current iframe height, which would prevent the iframe from shrinking when navigating to a page with less content. Pages use explicit padding to control their vertical spacing instead.
 
 ---
 
@@ -387,6 +423,12 @@ Axios с базовым URL `/api`. Интерцептор ответов пре
 
 Tailwind CSS v3. Цветовая схема: синий (primary), серый (фоны и текст). Только десктоп (MVP). CSS-класс `page-enter` добавляется на каждую страницу при переходе.
 
-## Авторесайз iframe
+## Авторесайз iframe и определение iframe
 
-Хук `useIframeResize` (ResizeObserver на body) и эффект на смене маршрута отправляют `postMessage({ type: "resize", height })` родительскому окну. Это устраняет двойной скролл внутри iframe.
+`main.tsx`: перед монтированием React добавляет класс `in-iframe` к `<body>` при `window.self !== window.top`. В CSS (`index.css`) этот класс активирует `overflow: hidden` — при прямом доступе в браузере `overflow: auto` и скролл работает штатно.
+
+Хук `useIframeResize` (в `App.tsx`) наблюдает за элементом `#root` через `ResizeObserver` и отправляет `postMessage({ type: "resize", height: root.scrollHeight })`. Именно `#root`, а не `body`: внутри iframe `body.scrollHeight = высота iframe`, что создаёт петлю роста. `root.scrollHeight` — реальная высота контента.
+
+При смене маршрута `PageWrapper` дополнительно вызывает `window.scrollTo(0, 0)`, обновляет размер iframe и отправляет `postMessage({ type: "scrollToWidget" })` для прокрутки родительской страницы к виджету.
+
+Все страницы не используют `min-h-screen` — иначе при переходе на более короткую страницу iframe не мог бы уменьшиться.

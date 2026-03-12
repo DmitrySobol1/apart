@@ -1,7 +1,7 @@
 ---
 description: Index of all project documentation files in .memory-bank/project_docs/
 status: current
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Project Documentation Index
@@ -24,13 +24,17 @@ Documentation for the Apart-NN booking widget (task-1 MVP). All documents are un
 
 ## Project Status
 
-**task-1 MVP** — Audit passed 2026-03-12. 22/22 backend tests pass. Zero critical or major issues. See `.tasks/task-1/audits/audit-20260312-000000.md` for the full audit report.
+**task-1 MVP** — Audit passed 2026-03-12. Manual browser test completed 2026-03-12. 22/22 backend tests pass. Full flow verified end-to-end in Chrome (direct access and iframe). See `.tasks/task-1/audits/audit-20260312-000000.md` for the full audit report and `.tasks/task-1/manual_test/manual_test.md` for the manual test report.
 
 **What is implemented:**
 - 4-step booking flow: search → rooms catalog → guest form → confirmation stub
 - Backend proxy for Bnovo API (GET routes + POST booking stub)
+  - `/api/rooms` returns a plain array (backend unwraps Bnovo's `{"rooms": [...]}` envelope)
+  - `/api/account` returns a flat object (backend unwraps Bnovo's `{"account": {...}}` envelope)
 - In-memory cache for room availability (5-minute TTL)
-- iframe auto-height via `postMessage`
+- iframe auto-height via `postMessage` (ResizeObserver on `#root`, not `body`)
+- Iframe detection in `main.tsx` — adds `in-iframe` class to `<body>` for conditional `overflow: hidden`
+- `scrollToWidget` postMessage on route change (parent page scrolls to widget)
 - Client-side and server-side validation
 - TypeScript strict mode, ESLint, Prettier across both packages
 
@@ -47,6 +51,8 @@ Documentation for the Apart-NN booking widget (task-1 MVP). All documents are un
 `.tasks/task-1/plan.md`: Full implementation plan for task-1.
 
 `.tasks/task-1/audits/audit-20260312-000000.md`: Audit report with subtask-by-subtask checklist, acceptance criteria verification, and minor issues list.
+
+`.tasks/task-1/manual_test/manual_test.md`: Manual browser test report — 15 test cases, 5 bugs found and fixed (API response unwrapping, iframe resize feedback loop, stale .js files, overflow CSS).
 
 `.tasks/task-1/subtasks/index.md`: List of all 12 completed subtasks (stt-000 through stt-task-1-fixes-01).
 
@@ -73,8 +79,8 @@ Documentation for the Apart-NN booking widget (task-1 MVP). All documents are un
 
 ## Статус проекта
 
-**task-1 MVP** завершён. Аудит пройден 2026-03-12. 22/22 тестов бэкенда проходят. Нет критических или серьёзных проблем.
+**task-1 MVP** завершён. Аудит пройден 2026-03-12. Ручное тестирование в браузере завершено 2026-03-12. 22/22 тестов бэкенда проходят. Весь flow проверен сквозным тестом в Chrome (прямой доступ и iframe).
 
-Реализовано: 4-шаговый поток бронирования, прокси Bnovo API, кэш доступности номеров (5 мин), авторесайз iframe, валидация на клиенте и сервере, TypeScript strict mode, ESLint, Prettier.
+Реализовано: 4-шаговый поток бронирования, прокси Bnovo API (с распаковкой ответов: `/api/rooms` → массив, `/api/account` → плоский объект), кэш доступности номеров (5 мин), авторесайз iframe (ResizeObserver на `#root`), определение iframe через `main.tsx` и класс `in-iframe`, `scrollToWidget` при смене маршрута, валидация на клиенте и сервере, TypeScript strict mode, ESLint, Prettier.
 
 Отложено на пост-MVP: реальное создание бронирования в Bnovo, адаптивная верстка, оплата, аналитика, личный кабинет.
