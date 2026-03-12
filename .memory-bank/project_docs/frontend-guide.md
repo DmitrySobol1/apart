@@ -1,7 +1,7 @@
 ---
 description: Frontend component hierarchy, state management, routing, and styling reference
 status: current
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Frontend Guide — Apart-NN Booking Widget
@@ -220,6 +220,8 @@ Props: `checkIn: string`, `checkOut: string`, `onChange: (checkIn, checkOut) => 
 
 Uses native `<input type="date">`. Auto-correction: if `checkIn >= checkOut`, `checkOut` is auto-set to `checkIn + 1 day`. The `min` attribute is set on both inputs (`today` for check-in, `checkIn + 1 day` for check-out).
 
+Labels are in Russian: "Заезд" (check-in) and "Выезд" (check-out), matching the Russian UI language used throughout the widget.
+
 Dates are in ISO format (`YYYY-MM-DD`) internally; conversion to `DD-MM-YYYY` happens in `SearchPage`.
 
 ---
@@ -412,7 +414,7 @@ Axios с базовым URL `/api`. Интерцептор ответов пре
 
 ## Ключевые компоненты
 
-- **DatePicker:** нативный `<input type="date">`, автокоррекция если заезд ≥ выезд.
+- **DatePicker:** нативный `<input type="date">`, метки «Заезд» / «Выезд», автокоррекция если заезд ≥ выезд.
 - **GuestCounter:** +/− кнопки, диапазон 1–10.
 - **PhotoGallery:** слайдер с навигацией стрелками, сортировка по `order`.
 - **GuestForm:** маска телефона `+7(XXX) XXX-XX-XX`, валидация по blur, отправляет `+7XXXXXXXXXX`.
