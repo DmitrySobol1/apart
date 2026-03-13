@@ -24,3 +24,7 @@ This index provides a high-level overview of the documentation stored in the Mem
 - [.memory-bank/fixtures/bnovo-amenities.json]: Snapshot of GET /amenities response (amenity groups, names, icons).
 - [.memory-bank/fixtures/bnovo-plans.json]: Snapshot of GET /plans response (rate plan metadata, no prices).
 - [.memory-bank/fixtures/bnovo-accounts.json]: Snapshot of GET /accounts response (hotel info, checkin/checkout times, currency).
+
+## Initial Research (Pre-Project Investigation)
+- [.memory-bank/initialResearch/tz.md]: Technical specification (ТЗ) — formal contract appendix defining the full project scope: booking widget functional requirements (calendar, room catalog, booking form, extras, responsive layout), admin panel features (appearance settings, Bnovo connection, booking journal), architecture diagram, hosting requirements.
+- [.memory-bank/initialResearch/info.md]: Deep technical research of the existing Bnovo booking system (~86 KB). Contains: full list of all 41 Bnovo PMS API endpoints (read-only, no booking creation), public API endpoint analysis (`public-api.reservationsteps.ru`), reverse-engineering of booking creation flow via `reservationsteps.ru` HTML forms (POST parameters, CSRF protection, endpoint structure), key identifiers (UID, account_id). Essential reference if implementing real booking creation (POST to reservationsteps.ru) in the future.
