@@ -1,7 +1,7 @@
 ---
 description: Frontend component hierarchy, state management, routing, and styling reference for the booking widget and admin panel
 status: current
-version: 2.0.0
+version: 3.0.0
 ---
 
 # Frontend Guide — Apart-NN
@@ -35,8 +35,8 @@ Pages map directly to the 4-step booking flow:
 |---|---|---|
 | `/` | `SearchPage` | 1 — Enter dates and guest count |
 | `/rooms` | `RoomsPage` | 2 — Browse available rooms |
-| `/booking` | `BookingPage` | 3 — Fill guest form |
-| `/confirmation` | `ConfirmationPage` | 4 — Success screen |
+| `/booking` | `BookingPage` | 3 — Fill guest form and submit booking |
+| `/confirmation` | `ConfirmationPage` | 4 — Payment redirect screen |
 
 ---
 
@@ -68,7 +68,7 @@ Initial state: all fields are `null`.
 | `selectRoom` | `(room: Room) => void` | RoomCard "Book" button |
 | `selectPlan` | `(plan: RoomPlan) => void` | RoomCard "Book" button |
 | `setGuest` | `(guest: GuestData) => void` | BookingPage after successful POST |
-| `reset` | `() => void` | ConfirmationPage "Back to search" |
+| `reset` | `() => void` | Called on full flow restart |
 
 `reset()` sets all state back to the initial `null` state and navigates to `/`.
 
@@ -99,7 +99,7 @@ function GuardedRoute({ children }: { children: JSX.Element }) {
 
 Guards `/rooms` and `/booking`. If `searchParams` is `null`, the user is redirected to `/`.
 
-`/confirmation` is not guarded — direct navigation shows the page with conditional rendering.
+`/confirmation` is not guarded — direct navigation to `/confirmation` without Router state (no `paymentUrl`) triggers an immediate redirect to `/` inside the component itself.
 
 **Navigation flow:**
 ```
@@ -111,11 +111,13 @@ Guards `/rooms` and `/booking`. If `searchParams` is `null`, the user is redirec
   → "← Изменить параметры" link: navigate("/")
 
 /booking (BookingPage)
-  → on POST success: navigate("/confirmation")
+  → on POST success: navigate("/confirmation", { state: { paymentUrl, bookingNumber, amount } })
+  → on POST error: stay on page, show error + "Повторить" button
   → "← Назад к номерам" link: navigate("/rooms")
 
 /confirmation (ConfirmationPage)
-  → "Вернуться к поиску" button: reset() + navigate("/")
+  → if no paymentUrl in state: navigate("/", { replace: true })
+  → after 500ms: window.top.location.href = paymentUrl
 ```
 
 ---
@@ -139,6 +141,47 @@ Axios instance configured with:
 
 ---
 
+### TypeScript Types (Booking Widget)
+
+File: `src/types/index.ts`
+
+```typescript
+interface BookingResponse {
+  success: boolean;
+  message?: string;
+  bookingNumber?: string;
+  paymentUrl?: string;
+  amount?: number;
+}
+
+interface BookingRequest {
+  dfrom: string;
+  dto: string;
+  planId: number;
+  adults: number;
+  roomTypeId: string;
+  guest: GuestData;
+}
+
+interface GuestData {
+  name: string;
+  surname: string;
+  phone: string;
+  email: string;
+  notes: string;
+}
+
+interface SearchParams {
+  dfrom: string;
+  dto: string;
+  adults: number;
+}
+```
+
+`BookingResponse` was updated in task-3 to include `bookingNumber?`, `paymentUrl?`, and `amount?`. Previously it only had `success` and `message?`.
+
+---
+
 ### Pages
 
 **SearchPage** (`src/pages/SearchPage.tsx`)
@@ -152,13 +195,20 @@ Axios instance configured with:
 - Each room rendered as `<RoomCard>`.
 
 **BookingPage** (`src/pages/BookingPage.tsx`)
-- 2-column layout: `<GuestForm>` + agreement checkbox + submit on the left; `<BookingSummary>` on the right.
+- 2-column layout: `<GuestForm>` + agreement checkbox + submit button on the left; `<BookingSummary>` on the right.
 - Submit enabled only when `formValid && agreed && !loading`.
-- On submit: `POST /api/booking` → `setGuest(data)` → navigate to `/confirmation`.
+- **Double-submit guard:** `submittingRef` (`useRef<boolean>`) is checked synchronously at the top of `handleSubmit` before any state update. Set to `true` immediately on click, reset in `finally`. Also sets `loading: true` to disable the button visually.
+- **On submit success:** calls `setGuest(guestData)`, then `navigate('/confirmation', { state: { paymentUrl, bookingNumber, amount } })`.
+- **On error** (network error or `success: false` in response): sets `error` state — displays `<ErrorMessage>` and a "Повторить" button. The user stays on the same page without re-entering data.
 
 **ConfirmationPage** (`src/pages/ConfirmationPage.tsx`)
-- Reads `selectedRoom`, `searchParams`, `guest` from context (all conditionally rendered).
-- "Вернуться к поиску" button: `reset()` → navigate to `/`.
+- Reads `paymentUrl`, `bookingNumber`, `amount` from `useLocation().state`.
+- If no `paymentUrl`: immediately navigates to `/` with `replace: true` and renders `null`.
+- Displays booking number (`Бронирование #...`) and formatted amount (`Сумма: X XXX руб.`) using `toLocaleString("ru-RU")`.
+- Shows "Перенаправляем на оплату..." heading.
+- `useEffect` with 500ms `setTimeout` calls `window.top!.location.href = paymentUrl`. Wrapped in `try/catch` — falls back to `window.location.href` if a cross-origin restriction blocks top-frame navigation.
+- Displays a manual fallback link with `target="_top"`: "Перейти к оплате →".
+- The 500ms delay allows React to render the page before the redirect fires.
 
 ---
 
@@ -251,6 +301,8 @@ if (window.self !== window.top) {
 `in-iframe` class activates `overflow: hidden` (in `index.css`), preventing double scrollbars.
 
 **Page height:** No page uses `min-h-screen` — `100vh` inside an iframe equals the iframe height, which would prevent the iframe from shrinking.
+
+**Payment redirect and iframe:** When `ConfirmationPage` redirects to the payment URL, it uses `window.top.location.href` to break out of the iframe. This is required because Alfa-Bank payment cookies use `SameSite=Lax`, which does not work inside an iframe. The top-frame navigation replaces the whole parent page, not just the iframe.
 
 ---
 
@@ -389,15 +441,32 @@ export interface Coefficient {
 
 ## Виджет бронирования
 
-4 страницы: SearchPage → RoomsPage → BookingPage → ConfirmationPage. Навигация через React Router v6. Страницы `/rooms` и `/booking` защищены `GuardedRoute` (редирект на `/` при `searchParams === null`).
+4 страницы: SearchPage → RoomsPage → BookingPage → ConfirmationPage. Навигация через React Router v6. Страницы `/rooms` и `/booking` защищены `GuardedRoute` (редирект на `/` при `searchParams === null`). `/confirmation` без guard — при отсутствии `paymentUrl` в Router state редирект на `/` изнутри компонента.
 
 **BookingContext:** глобальное состояние — `searchParams`, `rooms`, `selectedRoom`, `selectedPlan`, `guest`. Все изначально `null`. `reset()` обнуляет и переходит на `/`.
+
+**Тип BookingResponse (обновлён в task-3):** `{ success: boolean; message?: string; bookingNumber?: string; paymentUrl?: string; amount?: number }`. Ранее содержал только `success` и `message?`.
+
+**BookingPage (task-3):**
+- Защита от двойной отправки: `submittingRef` (`useRef<boolean>`) проверяется синхронно в начале `handleSubmit`, сбрасывается в `finally`. Плюс `loading` state для визуальной блокировки кнопки.
+- При успехе: `setGuest(guestData)` → `navigate('/confirmation', { state: { paymentUrl, bookingNumber, amount } })`.
+- При ошибке (`success: false` или сетевая ошибка): показывает сообщение + кнопку «Повторить», пользователь остаётся на странице.
+
+**ConfirmationPage (task-3, перепрофилирован):**
+- Читает `paymentUrl`, `bookingNumber`, `amount` из Router state.
+- Если `paymentUrl` отсутствует: `navigate('/', { replace: true })`, рендерит `null`.
+- Отображает `Бронирование #{bookingNumber}` и `Сумма: {amount} руб.` (`toLocaleString("ru-RU")`).
+- Показывает «Перенаправляем на оплату...».
+- `useEffect` с setTimeout 500мс вызывает `window.top!.location.href = paymentUrl`, обёрнутый в `try/catch` (fallback на `window.location.href`).
+- Резервная ссылка с `target="_top"`: «Перейти к оплате →».
 
 **API-клиент виджета:** Axios с базовым URL `/api`. Интерцептор ошибок: нет сети → понятное сообщение; 400 → «Invalid request»; 502/504 → «Service temporarily unavailable»; 5xx → «Something went wrong».
 
 **Стилизация:** Tailwind CSS v3, только десктоп, переходы через класс `page-enter`.
 
 **Авторесайз iframe:** хук `useIframeResize` следит за `#root` (не `body`) через `ResizeObserver`, отправляет `postMessage({ type: "resize", height })`. `main.tsx` добавляет `in-iframe` к `<body>` при `window.self !== window.top`, активируя `overflow: hidden`.
+
+**Редирект на оплату и iframe:** `window.top.location.href` используется для выхода из iframe на верхний фрейм — это обязательно, так как cookies Альфа-Банка используют `SameSite=Lax`.
 
 ## Панель администратора
 

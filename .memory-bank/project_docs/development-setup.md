@@ -1,7 +1,7 @@
 ---
 description: Local development setup, environment variables, npm scripts, and testing instructions
 status: current
-version: 2.1.0
+version: 3.0.0
 ---
 
 # Development Setup
@@ -59,6 +59,7 @@ Then edit `backend/.env` with real values:
 BNOVO_UID=your-hotel-uid
 BNOVO_ACCOUNT_ID=your-account-id
 BNOVO_API_BASE=https://public-api.reservationsteps.ru/v1/api
+BNOVO_BOOKING_URL=https://reservationsteps.ru
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
@@ -68,16 +69,17 @@ ADMIN_URL=http://localhost:5174
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BNOVO_UID` | Yes | — | Hotel UID for `/accounts` endpoint |
+| `BNOVO_UID` | Yes | — | Hotel UID for Bnovo API and booking POST |
 | `BNOVO_ACCOUNT_ID` | Yes | — | Account ID for `/rooms`, `/plans` endpoints |
-| `BNOVO_API_BASE` | Yes | — | Bnovo API base URL (include `/v1/api`) |
+| `BNOVO_API_BASE` | Yes | — | Bnovo public API base URL (include `/v1/api`) |
+| `BNOVO_BOOKING_URL` | No | `https://reservationsteps.ru` | Base URL for booking POST endpoint |
 | `PORT` | No | `3000` | Backend listen port |
 | `NODE_ENV` | No | `development` | Node environment |
 | `FRONTEND_URL` | No | `http://localhost:5173` | Allowed CORS origin for the booking widget |
 | `MONGODB_URI` | No | `mongodb://localhost:27017/apart-nn` | MongoDB connection string |
 | `ADMIN_URL` | No | — | Allowed CORS origin for the admin panel |
 
-The backend validates all variables with Zod at startup and exits immediately if required ones are missing.
+The backend validates all variables with Zod at startup and exits immediately if required ones are missing. `BNOVO_BOOKING_URL` has a Zod default of `https://reservationsteps.ru` so it is optional in `.env`.
 
 If MongoDB is unreachable at startup, the backend logs a warning and continues running — booking widget endpoints (which do not use MongoDB) remain available. Admin API endpoints return `503` until MongoDB is connected.
 
@@ -202,16 +204,16 @@ Expected output:
 
 ### Backend Tests
 
-The test suite uses Vitest and Supertest. MongoDB integration tests use `mongodb-memory-server` — an in-process MongoDB instance. No real `.env` or external services required.
+The test suite uses Vitest and Supertest. MongoDB integration tests use `mongodb-memory-server` — an in-process MongoDB instance. No real `.env` or external services required. The booking service tests mock `global.fetch` — no real requests are made to `reservationsteps.ru`.
 
 ```bash
 cd backend && npm test
 ```
 
-Expected output (43 tests, 3 files):
+Expected output (56 tests, 4 files):
 ```
-Test Files  3 passed (3)
-     Tests  43 passed (43)
+Test Files  4 passed (4)
+     Tests  56 passed (56)
 ```
 
 **Test files:**
@@ -219,10 +221,11 @@ Test Files  3 passed (3)
 | File | Tests | Coverage |
 |---|---|---|
 | `api.test.ts` | 22 | Booking widget endpoints: GET rooms/plans/amenities/account, POST booking, date validation, credential isolation |
+| `bnovo-booking.test.ts` | 13 | Booking service: successful booking, form field verification, non-302 response, missing Location header, malformed Location, NaN amount, missing away_url, network error; route integration: success shape, Bnovo error, invalid phone, dto before dfrom, missing fields |
 | `room-sync.test.ts` | 8 | Room sync: upsert logic, coefficient defaults, idempotency, partial failures, deduplication |
 | `admin-api.test.ts` | 13 | Admin endpoints: GET rooms/coefficients, PATCH partial update, comma normalization, 404/400 validation |
 
-**Test environment setup** (`backend/src/__tests__/setup.ts`): Sets all required env vars before tests run to avoid Zod config validation errors.
+**Test environment setup** (`backend/src/__tests__/setup.ts`): Sets all required env vars before tests run to avoid Zod config validation errors. Sets `BNOVO_BOOKING_URL` to `https://reservationsteps.ru` for booking service tests.
 
 ### Frontend Quality Check
 
@@ -260,6 +263,8 @@ cd frontend && npm run test:bundle
 2. Open `test-iframe.html` directly in a browser (file:// or any local server)
 3. The iframe loads `http://localhost:5173` and auto-resizes via `postMessage`
 
+**Note on payment redirect in iframe testing:** When testing the full booking flow in an iframe, the ConfirmationPage calls `window.top.location.href = paymentUrl`. In a real iframe context this navigates the parent page to the payment URL. In `test-iframe.html`, this will navigate the test page itself away from the widget.
+
 ---
 
 ## Production Build
@@ -283,6 +288,7 @@ In production:
 - Set `MONGODB_URI` in `backend/.env` (or environment) to the production MongoDB connection string.
 - Set `FRONTEND_URL` and `ADMIN_URL` to the deployed origin URLs.
 - Set `VITE_API_BASE_URL` when building `frontend/` to point to the deployed backend URL.
+- `BNOVO_BOOKING_URL` can be left as default (`https://reservationsteps.ru`) unless overriding for testing.
 - `frontend/dist/` and `admin/dist/` can each be served from any static file server or CDN.
 
 ---
@@ -305,7 +311,8 @@ cd frontend && npm install
 cd admin && npm install
 cp backend/.env.example backend/.env
 # Заполните .env: BNOVO_UID, BNOVO_ACCOUNT_ID, BNOVO_API_BASE (обязательны)
-# Опционально: MONGODB_URI, ADMIN_URL, FRONTEND_URL, PORT
+# Опционально: BNOVO_BOOKING_URL (по умолчанию https://reservationsteps.ru),
+#              MONGODB_URI, ADMIN_URL, FRONTEND_URL, PORT
 ```
 
 ## Запуск в разработке
@@ -328,17 +335,19 @@ cd backend && npm run seed:rooms
 
 **Важно:** `bnovoClient.getRooms()` принимает даты в формате `DD-MM-YYYY`. При использовании `toISOString().slice(0, 10)` (формат `YYYY-MM-DD`) Bnovo API вернёт HTTP 406.
 
-## Переменные окружения
+## Переменные окружения (task-3)
 
-Обязательные: `BNOVO_UID`, `BNOVO_ACCOUNT_ID`, `BNOVO_API_BASE`. Опциональные: `PORT` (3000), `MONGODB_URI` (localhost:27017/apart-nn), `FRONTEND_URL`, `ADMIN_URL`. При отсутствии MongoDB — бэкенд запускается, admin API возвращает 503.
+Добавлена переменная `BNOVO_BOOKING_URL` — базовый URL для POST-эндпоинта бронирования Bnovo. По умолчанию `https://reservationsteps.ru`. Задаётся через Zod с `.default()`, поэтому указывать в `.env` необязательно.
+
+Обязательные: `BNOVO_UID`, `BNOVO_ACCOUNT_ID`, `BNOVO_API_BASE`. При отсутствии MongoDB — бэкенд запускается, admin API возвращает 503.
 
 ## Тесты
 
 ```bash
-cd backend && npm test  # 43 теста: 22 виджет API + 8 room-sync + 13 admin API
+cd backend && npm test  # 56 тестов: 22 виджет API + 13 booking service + 8 room-sync + 13 admin API
 ```
 
-MongoDB-тесты используют `mongodb-memory-server` — реальная база не нужна.
+MongoDB-тесты используют `mongodb-memory-server` — реальная база не нужна. Тесты сервиса бронирования мокируют `global.fetch` — реальных запросов к `reservationsteps.ru` нет.
 
 Качество кода:
 ```bash
@@ -346,3 +355,7 @@ cd backend && npm run qc    # ESLint + TypeScript
 cd frontend && npm run qc   # ESLint + TypeScript
 cd admin && npm run type-check  # TypeScript
 ```
+
+## Тестирование iframe и оплаты
+
+`test-iframe.html` позволяет протестировать виджет в iframe. При прохождении полного флоу бронирования ConfirmationPage вызовет `window.top.location.href = paymentUrl`, что приведёт к переходу тестовой страницы на страницу оплаты Bnovo — это ожидаемое поведение.
