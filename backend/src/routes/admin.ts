@@ -88,7 +88,7 @@ router.patch(
       const updated = await Coefficient.findOneAndUpdate(
         { bnovoId: req.params.bnovoId },
         { $set: parsed.data },
-        { new: true },
+        { returnDocument: 'after' },
       ).lean();
 
       if (!updated) {

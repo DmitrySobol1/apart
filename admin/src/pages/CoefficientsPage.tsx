@@ -28,7 +28,7 @@ interface CellState {
 }
 
 type RowState = Record<CoefKey, CellState>;
-type TableState = Record<number, RowState>;
+type TableState = Record<string, RowState>;
 
 const COEF_KEYS: CoefKey[] = ['coefficient1', 'coefficient2', 'coefficient3'];
 
@@ -88,7 +88,7 @@ export default function CoefficientsPage() {
     load();
   }, [load]);
 
-  function updateCell(bnovoId: number, key: CoefKey, partial: Partial<CellState>) {
+  function updateCell(bnovoId: string, key: CoefKey, partial: Partial<CellState>) {
     setTableState((prev) => ({
       ...prev,
       [bnovoId]: {
@@ -98,11 +98,11 @@ export default function CoefficientsPage() {
     }));
   }
 
-  function handleChange(bnovoId: number, key: CoefKey, value: string) {
+  function handleChange(bnovoId: string, key: CoefKey, value: string) {
     updateCell(bnovoId, key, { value, error: '' });
   }
 
-  async function handleBlur(bnovoId: number, key: CoefKey, originalValue: number) {
+  async function handleBlur(bnovoId: string, key: CoefKey, originalValue: number) {
     const cell = tableState[bnovoId]?.[key];
     if (!cell) return;
 

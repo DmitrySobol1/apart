@@ -1,10 +1,10 @@
 export interface Room {
-  bnovoId: number;
+  bnovoId: string;
   name: string;
 }
 
 export interface Coefficient {
-  bnovoId: number;
+  bnovoId: string;
   roomName: string;
   coefficient1: number;
   coefficient2: number;

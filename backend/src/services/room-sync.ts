@@ -65,7 +65,7 @@ export async function syncRooms(): Promise<void> {
     const result = await Room.findOneAndUpdate(
       { bnovoId },
       { name },
-      { upsert: true, new: false, lean: true },
+      { upsert: true, returnDocument: 'before', lean: true },
     );
 
     const isNew = result === null;
