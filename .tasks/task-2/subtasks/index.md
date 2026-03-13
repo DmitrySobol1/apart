@@ -16,5 +16,5 @@
 - [x] stt-006 | Test Writer | eval / Integration tests — room sync + admin API + coefficient CRUD — Vitest
       Write integration tests for room sync service (mock Bnovo, verify DB), admin API endpoints (supertest), default coefficients, upsert idempotency, decimal normalization, 404/400 validation errors.
 
-- [ ] stt-task-2-fixes-01 | Code Implementer | fix / Admin panel type mismatch and API response unwrapping (audit-2026-03-13-04-45)
+- [x] stt-task-2-fixes-01 | Code Implementer | fix / Admin panel type mismatch and API response unwrapping (audit-2026-03-13-04-45)
       Fix bnovoId type (number→string), API client response envelope unwrapping (r.data→r.data.data), and deprecated Mongoose option in room-sync.ts.
