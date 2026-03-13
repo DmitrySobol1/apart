@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import mongoose from "mongoose";
 import { config } from "./config";
 import roomsRouter from "./routes/rooms";
 import plansRouter from "./routes/plans";
@@ -11,7 +12,10 @@ import { errorHandler } from "./middleware/error-handler";
 
 const app = express();
 
-app.use(cors({ origin: config.frontendUrl }));
+const allowedOrigins = [config.frontendUrl, config.adminUrl].filter(
+  (origin): origin is string => Boolean(origin),
+);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
@@ -25,6 +29,10 @@ app.use("/api/account", accountRouter);
 app.use("/api/booking", bookingRouter);
 
 app.use(errorHandler);
+
+mongoose.connect(config.mongodbUri).catch((err: unknown) => {
+  console.warn("MongoDB connection failed, continuing without DB:", err);
+});
 
 app.listen(config.port, () => {
   console.log(`Server running on http://localhost:${config.port}`);
