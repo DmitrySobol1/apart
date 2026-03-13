@@ -5,7 +5,10 @@ import { bnovoClient } from "./bnovo-client";
 const DATE_OFFSETS = [7, 14, 21, 30, 45, 60, 75, 90, 105, 120];
 
 function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
 }
 
 function buildDateRanges(): Array<{ dfrom: string; dto: string }> {
