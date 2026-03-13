@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import express from "express";
 import request from "supertest";
+import type { BookingParams, BookingResult } from "../services/bnovo-booking.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -81,7 +82,7 @@ const BASE_PARAMS = {
 describe("createBooking service", () => {
   // Import the real module once — vi.mock is NOT used in this describe block.
   // We stub global.fetch per test to avoid real network calls.
-  let createBooking: (params: typeof BASE_PARAMS) => Promise<unknown>;
+  let createBooking: (params: BookingParams) => Promise<BookingResult>;
 
   beforeEach(async () => {
     vi.unstubAllGlobals();
