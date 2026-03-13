@@ -1,21 +1,29 @@
 ---
-description: System architecture overview for the Apart-NN booking widget (task-1 MVP)
+description: System architecture overview for the Apart-NN booking widget and admin panel
 status: current
-version: 1.1.0
+version: 2.0.0
 ---
 
 # Architecture — Apart-NN Booking Widget
 
 ## Overview
 
-The booking widget is a React SPA delivered inside an `<iframe>` on `apart-nn.ru`. A Node.js/Express backend acts as a proxy between the widget and the Bnovo public API, keeping all hotel credentials server-side.
+The system has three separate applications sharing a single backend:
+
+1. **Booking widget** (`frontend/`) — React SPA delivered inside an `<iframe>` on `apart-nn.ru`. End-customer facing.
+2. **Admin panel** (`admin/`) — React SPA for hotel staff. Manages per-room pricing coefficients.
+3. **Backend** (`backend/`) — Node.js/Express server. Proxies Bnovo API for the widget, serves admin API for the panel, persists data in MongoDB.
 
 ```
 apart-nn.ru (parent page)
   └── <iframe src="http://widget-domain">
         └── React SPA (frontend/)
-              └── HTTP /api/* ──→ Express backend (backend/)
+              └── HTTP /api/* ──→ Express backend (backend/)    ←── MongoDB
                                     └── HTTPS ──→ public-api.reservationsteps.ru/v1/api
+
+Admin browser
+  └── React SPA (admin/)   port 5174 (dev)
+        └── HTTP /api/admin/* ──→ Express backend (backend/)   ←── MongoDB
 ```
 
 ---
@@ -30,12 +38,14 @@ apart-nn.ru (parent page)
 | Express | ^4.21.2 | HTTP server |
 | TypeScript | ^5.7.3 | Type safety |
 | tsx | ^4.19.2 | Dev runner (watch mode) |
+| Mongoose | ^9.3.0 | MongoDB ODM |
 | axios | ^1.7.9 | HTTP client for Bnovo API |
-| zod | ^3.24.1 | Runtime validation (config, booking body) |
+| zod | ^3.24.1 | Runtime validation (config, request bodies) |
 | dotenv | ^16.4.7 | `.env` loading |
 | cors | ^2.8.5 | CORS middleware |
 | vitest | ^4.0.18 | Test runner |
 | supertest | ^7.2.2 | HTTP integration tests |
+| mongodb-memory-server | ^11.0.1 | In-process MongoDB for tests |
 
 ### Frontend (`frontend/`)
 
@@ -48,7 +58,19 @@ apart-nn.ru (parent page)
 | axios | ^1.7.9 | HTTP client |
 | Tailwind CSS | ^3.4.17 | Utility-first styling |
 
-Both packages use ESLint + Prettier with `strict: true` TypeScript.
+### Admin Panel (`admin/`)
+
+| Package | Version | Purpose |
+|---|---|---|
+| React | ^18.3.1 | UI library |
+| TypeScript | ^5.7.3 | Type safety |
+| Vite | ^6.1.0 | Build tool, dev server |
+| react-router-dom | ^6.28.1 | Client-side routing |
+| @mui/material | ^6.1.6 | Material UI component library |
+| @emotion/react, @emotion/styled | ^11.x | MUI peer dependencies |
+| axios | ^1.7.9 | HTTP client |
+
+All packages use ESLint + TypeScript `strict: true`.
 
 ---
 
@@ -58,20 +80,31 @@ Both packages use ESLint + Prettier with `strict: true` TypeScript.
 apart-nn-develop/
 ├── backend/
 │   ├── src/
-│   │   ├── index.ts                  # Express app entry point
+│   │   ├── index.ts                  # Express app entry point, MongoDB connect
 │   │   ├── config.ts                 # Zod-validated env config
+│   │   ├── types/
+│   │   │   └── index.ts              # AdminRoomResponse, AdminCoefficientResponse
+│   │   ├── models/
+│   │   │   ├── Room.ts               # Mongoose Room model (bnovoId, name)
+│   │   │   └── Coefficient.ts        # Mongoose Coefficient model (3 coefficients)
 │   │   ├── services/
-│   │   │   └── bnovo-client.ts       # Axios client for Bnovo API
+│   │   │   ├── bnovo-client.ts       # Axios client for Bnovo API
+│   │   │   └── room-sync.ts          # Room sync: 10 date ranges → upsert rooms+coefficients
 │   │   ├── routes/
 │   │   │   ├── rooms.ts              # GET /api/rooms (with cache)
 │   │   │   ├── plans.ts              # GET /api/plans
 │   │   │   ├── amenities.ts          # GET /api/amenities
 │   │   │   ├── account.ts            # GET /api/account
-│   │   │   └── booking.ts            # POST /api/booking
+│   │   │   ├── booking.ts            # POST /api/booking
+│   │   │   └── admin.ts              # GET/PATCH /api/admin/*
+│   │   ├── scripts/
+│   │   │   └── seed-rooms.ts         # Entry point for `npm run seed:rooms`
 │   │   ├── middleware/
 │   │   │   └── error-handler.ts      # Express error middleware
 │   │   └── __tests__/
-│   │       ├── api.test.ts           # 22 integration tests
+│   │       ├── api.test.ts           # 22 booking widget API tests
+│   │       ├── room-sync.test.ts     # 8 room sync unit tests
+│   │       ├── admin-api.test.ts     # 13 admin API integration tests
 │   │       └── setup.ts              # Vitest env setup
 │   ├── package.json
 │   ├── tsconfig.json
@@ -80,8 +113,8 @@ apart-nn-develop/
 │   └── .env                          # Not committed (gitignored)
 ├── frontend/
 │   ├── src/
-│   │   ├── main.tsx                  # React entry point
-│   │   ├── App.tsx                   # Router, guards, iframe hook
+│   │   ├── main.tsx                  # React entry point, iframe detection
+│   │   ├── App.tsx                   # Router, guards, iframe resize hook
 │   │   ├── types/
 │   │   │   └── index.ts              # All TypeScript interfaces
 │   │   ├── api/
@@ -108,8 +141,23 @@ apart-nn-develop/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
+├── admin/
+│   ├── src/
+│   │   ├── main.tsx                  # React entry point
+│   │   ├── App.tsx                   # ThemeProvider, BrowserRouter, Routes
+│   │   ├── types/
+│   │   │   └── index.ts              # Room, Coefficient interfaces
+│   │   ├── api/
+│   │   │   └── client.ts             # Axios instance, getRooms/getCoefficients/patchCoefficient
+│   │   ├── components/
+│   │   │   └── Navbar.tsx            # AppBar with tab navigation
+│   │   └── pages/
+│   │       └── CoefficientsPage.tsx  # MUI table, editable coefficients, auto-save
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts                # Port 5174, proxy /api → localhost:3000
 ├── fixtures/
-│   ├── README.md                     # Bnovo API data structure reference
+│   ├── README.md
 │   ├── bnovo-rooms.json
 │   ├── bnovo-plans.json
 │   ├── bnovo-amenities.json
@@ -121,9 +169,60 @@ apart-nn-develop/
 
 ---
 
+## MongoDB Data Model
+
+Two collections managed via Mongoose:
+
+### `rooms` collection
+
+Populated by the room sync script. One document per unique room type from Bnovo.
+
+| Field | Type | Notes |
+|---|---|---|
+| `bnovoId` | String | Unique. Bnovo room type ID (`id` field from API). |
+| `name` | String | Room display name (`name_ru` from Bnovo). |
+| `createdAt` | Date | Auto (Mongoose timestamps). |
+| `updatedAt` | Date | Auto (Mongoose timestamps). |
+
+### `coefficients` collection
+
+One document per room, created automatically when a new room is discovered by the sync script.
+
+| Field | Type | Notes |
+|---|---|---|
+| `roomId` | ObjectId | Ref to `Room._id`. |
+| `bnovoId` | String | Unique. Matches `rooms.bnovoId`. |
+| `coefficient1` | Number | Default: 1. |
+| `coefficient2` | Number | Default: 1. |
+| `coefficient3` | Number | Default: 1. |
+| `updatedAt` | Date | Auto (Mongoose `{ timestamps: { createdAt: false, updatedAt: true } }`). |
+
+---
+
+## Room Sync Flow
+
+The `syncRooms()` service discovers all rooms by querying the Bnovo API across 10 date ranges to maximize coverage (rooms vary by availability period).
+
+```
+npm run seed:rooms
+  └── syncRooms()
+        ├── Build 10 date ranges (offsets: +7, +14, +21, +30, +45, +60, +75, +90, +105, +120 days)
+        ├── For each range:
+        │     ├── GET Bnovo /rooms?dfrom=...&dto=...
+        │     ├── Collect room.id + room.name_ru into a Map (deduplication)
+        │     └── 1–2s random delay between requests
+        └── For each unique room:
+              ├── Room.findOneAndUpdate({ bnovoId }, { name }, { upsert, returnDocument: 'before' })
+              └── If new room: Coefficient.updateOne({ $setOnInsert: {...defaults} }, { upsert })
+```
+
+The sync is idempotent. Re-running updates room names and skips existing coefficient records (`$setOnInsert` only fires on insert).
+
+---
+
 ## Data Flow
 
-### Search Flow
+### Widget Search Flow
 
 ```
 User fills dates + guests → clicks "Search"
@@ -131,41 +230,47 @@ User fills dates + guests → clicks "Search"
   → GET /api/rooms?dfrom=DD-MM-YYYY&dto=DD-MM-YYYY
     → Backend validates dates (format, dto > dfrom)
     → Checks in-memory cache (key: dfrom+dto, TTL: 5 min)
-    → If miss: GET public-api.reservationsteps.ru/v1/api/rooms?account_id=...&dfrom=...&dto=...
-    → Unwraps response.data.rooms (Bnovo returns {"rooms": [...]}, backend strips the envelope)
+    → If miss: GET public-api.reservationsteps.ru/v1/api/rooms?...
+    → Unwraps response.data.rooms array
     → Returns rooms[] array directly
   → BookingContext stores { searchParams, rooms }
   → Navigate to /rooms
-  → RoomsPage filters: available > 0 && adults >= searchParams.adults
-  → Sorts by minimum plan price ascending
-  → Renders RoomCard[] with amenity definitions (fetched from /api/amenities)
 ```
 
-### Booking Flow
+### Widget Booking Flow
 
 ```
 User clicks "Забронировать" on a RoomCard
   → selectRoom(room) + selectPlan(plan) stored in context
   → Navigate to /booking
-  → BookingPage renders GuestForm + BookingSummary sidebar
-  → User fills name, surname, phone (+7 mask), email, notes
-  → User checks agreement checkbox
-  → "Забронировать" button enabled when form valid + checkbox checked
+  → User fills GuestForm
   → POST /api/booking { dfrom, dto, planId, adults, roomTypeId, guest }
-    → Backend validates with Zod (dates, planId, adults, roomTypeId, guest fields)
-    → Logs payload with ISO timestamp to console
-    → Returns { success: true, message: "Request accepted" }
-  → setGuest(guestData) stored in context
+    → Backend validates with Zod
+    → Logs payload, returns { success: true, message: "Request accepted" }
   → Navigate to /confirmation
-  → ConfirmationPage shows booking summary + "Back to search" button
-  → reset() clears all context state → navigate to /
+```
+
+### Admin Coefficient Update Flow
+
+```
+Staff opens admin panel (http://localhost:5174)
+  → GET /api/admin/coefficients
+    → Backend fetches coefficients + joins roomName from rooms collection
+    → Returns { data: AdminCoefficientResponse[] }
+  → Admin panel renders editable MUI table
+  → Staff edits a coefficient cell and clicks away (blur)
+    → PATCH /api/admin/coefficients/:bnovoId { coefficientN: value }
+      → Backend validates with Zod (positive number, at least one field)
+      → Updates MongoDB coefficient document
+      → Returns { success: true, data: AdminCoefficientResponse }
+    → Cell turns green on success, red on failure
 ```
 
 ---
 
 ## iframe Integration
 
-The widget runs inside an `<iframe>` element. To prevent double scrollbars and fit the iframe to its content, the widget sends `postMessage` events to the parent page.
+The widget runs inside an `<iframe>` element. To prevent double scrollbars and fit the iframe to its content:
 
 **Iframe detection** (`main.tsx`):
 ```tsx
@@ -173,7 +278,7 @@ if (window.self !== window.top) {
   document.body.classList.add("in-iframe");
 }
 ```
-The `in-iframe` class is added to `<body>` when the widget runs inside an iframe. This activates `overflow: hidden` on the body (defined in `index.css`), letting the parent page own the scroll. When accessed directly in a browser, the class is absent and `overflow: auto` applies (normal scrolling).
+The `in-iframe` class activates `overflow: hidden` on the body (in `index.css`), letting the parent page own the scroll.
 
 **Widget side** (`App.tsx`):
 ```
@@ -184,35 +289,16 @@ useIframeResize() hook:
   - On route change: also sends postMessage({ type: "scrollToWidget" }, "*")
 ```
 
-Observing `#root` (actual content height) instead of `document.body` is critical: in an iframe, `body.scrollHeight` equals the iframe's current height, which creates a runaway feedback loop. `root.scrollHeight` reflects the real rendered content size.
-
-**Parent page** (`test-iframe.html`):
-```html
-<iframe id="widget" src="http://localhost:5173"></iframe>
-<script>
-  window.addEventListener('message', function(event) {
-    if (event.data?.type === 'resize') {
-      iframe.style.height = event.data.height + 'px';
-    }
-    if (event.data?.type === 'scrollToWidget') {
-      iframe.scrollIntoView({ behavior: 'smooth' });
-    }
-  });
-</script>
-```
-
-The iframe has no fixed height set in HTML. The parent script sets `height` dynamically from messages. This eliminates iframe scrollbars while the parent page scrolls normally.
-
-**Page height behaviour:** All pages (`SearchPage`, `RoomsPage`, `BookingPage`, `ConfirmationPage`) do **not** use Tailwind's `min-h-screen`. Inside an iframe, `100vh` equals the iframe height, which would prevent the iframe from shrinking when navigating to shorter pages. Page content determines its own height via padding only.
+Observing `#root` instead of `document.body` is critical: in an iframe, `body.scrollHeight` equals the iframe's current height, creating a feedback loop. `root.scrollHeight` reflects the real rendered content size.
 
 ---
 
 ## Security Notes
 
 - `BNOVO_UID` and `BNOVO_ACCOUNT_ID` are read from `backend/.env` at startup (Zod-validated). They are never sent to the frontend.
-- CORS is configured to allow only `FRONTEND_URL` (default: `http://localhost:5173`).
-- Frontend bundle credential check: `npm run test:bundle` in `frontend/` builds the bundle and scans it for credential strings.
-- `POST /api/booking` is a stub: it validates and logs, but creates no real reservation in Bnovo.
+- CORS is configured to allow `FRONTEND_URL` and, when set, `ADMIN_URL`. Both are filtered from a single array, so only truthy values are included.
+- Admin panel has no authentication in this iteration (planned for a future task).
+- `POST /api/booking` is a stub: validates and logs, creates no real reservation in Bnovo.
 
 ---
 
@@ -224,28 +310,21 @@ The iframe has no fixed height set in HTML. The parent script sets `height` dyna
 
 ## Обзор
 
-Виджет бронирования — это React SPA, встроенный через `<iframe>` на `apart-nn.ru`. Бэкенд на Node.js/Express выступает прокси между виджетом и публичным API Bnovo, хранит все учётные данные отеля на стороне сервера.
+Система состоит из трёх приложений на одном бэкенде:
+1. **Виджет бронирования** (`frontend/`) — React SPA в `<iframe>` на apart-nn.ru.
+2. **Панель администратора** (`admin/`) — React SPA для управления коэффициентами номеров.
+3. **Бэкенд** (`backend/`) — Node.js/Express: прокси Bnovo API, Admin API, MongoDB.
 
-## Техстек
+## Модель данных MongoDB
 
-**Бэкенд:** Node.js 18+, Express ^4.21.2, TypeScript ^5.7.3, Zod, Axios, dotenv, Vitest.
+Две коллекции:
+- **rooms** — типы номеров из Bnovo (`bnovoId: String unique`, `name`, timestamps).
+- **coefficients** — коэффициенты per-номер (`bnovoId: String unique`, `roomId: ObjectId ref Room`, `coefficient1/2/3: Number default 1`, `updatedAt`).
 
-**Фронтенд:** React ^18.3.1, TypeScript ^5.7.3, Vite ^6.1.0, React Router v6, Axios, Tailwind CSS ^3.4.17.
+## Синхронизация номеров
 
-## Поток данных
-
-**Поиск:** Пользователь вводит даты и количество гостей → фронтенд конвертирует даты в формат DD-MM-YYYY → GET /api/rooms → бэкенд проверяет кэш (5 мин, ключ dfrom+dto) → запрашивает Bnovo API → распаковывает `response.data.rooms` (Bnovo возвращает `{"rooms": [...]}`, бэкенд отдаёт только массив) → возвращает массив номеров → фронтенд фильтрует и сортирует.
-
-**Бронирование:** Пользователь выбирает номер → заполняет форму гостя → нажимает «Забронировать» → POST /api/booking → бэкенд валидирует (Zod) и логирует → возвращает `{ success: true }` → фронтенд показывает страницу подтверждения.
-
-## Интеграция iframe
-
-При запуске внутри iframe `main.tsx` добавляет класс `in-iframe` к `<body>`, что активирует `overflow: hidden` через CSS (`index.css`). При прямом доступе в браузере класс отсутствует и скролл работает штатно.
-
-Хук `useIframeResize` в `App.tsx` наблюдает за элементом `#root` (не за `body`) через `ResizeObserver` и отправляет `postMessage({ type: "resize", height: root.scrollHeight })` при каждом изменении размера контента. При смене маршрута дополнительно отправляется `postMessage({ type: "scrollToWidget" })`. Родительская страница слушает оба типа сообщений: `resize` — устанавливает высоту iframe, `scrollToWidget` — прокручивает к виджету.
-
-Все страницы не используют `min-h-screen` — иначе внутри iframe высота привязывалась бы к viewport и iframe не мог уменьшаться при переходе на более короткие страницы.
+`npm run seed:rooms` вызывает `syncRooms()`: запрашивает Bnovo API по 10 диапазонам дат с задержкой 1–2с между запросами, дедуплицирует номера, делает upsert в `rooms` и создаёт соответствующие записи в `coefficients` (`$setOnInsert`, коэффициенты по умолчанию = 1). Идемпотентна.
 
 ## Безопасность
 
-Учётные данные Bnovo (`BNOVO_UID`, `BNOVO_ACCOUNT_ID`) хранятся только в `backend/.env`, никогда не передаются клиенту. CORS ограничен значением `FRONTEND_URL`. `POST /api/booking` — MVP-заглушка, реального бронирования не создаёт.
+Учётные данные Bnovo только в `backend/.env`. CORS разрешает `FRONTEND_URL` и `ADMIN_URL` (если задан). Панель администратора без авторизации (запланировано в будущих задачах). `POST /api/booking` — MVP-заглушка.

@@ -1,12 +1,20 @@
 ---
-description: Frontend component hierarchy, state management, routing, and styling reference
+description: Frontend component hierarchy, state management, routing, and styling reference for the booking widget and admin panel
 status: current
-version: 1.2.0
+version: 2.0.0
 ---
 
-# Frontend Guide — Apart-NN Booking Widget
+# Frontend Guide — Apart-NN
 
-## Component Hierarchy and Page Flow
+This document covers two separate frontend applications:
+- [Booking Widget (`frontend/`)](#booking-widget)
+- [Admin Panel (`admin/`)](#admin-panel)
+
+---
+
+## Booking Widget
+
+### Component Hierarchy and Page Flow
 
 ```
 App
@@ -32,14 +40,13 @@ Pages map directly to the 4-step booking flow:
 
 ---
 
-## BookingContext — State Management
+### BookingContext — State Management
 
 File: `src/context/BookingContext.tsx`
 
 All booking state lives in a single React context. Pages read from and write to context via the `useBooking()` hook.
 
-### State Shape
-
+**State shape:**
 ```typescript
 interface BookingState {
   searchParams: SearchParams | null;   // { dfrom, dto, adults } in DD-MM-YYYY
@@ -52,7 +59,7 @@ interface BookingState {
 
 Initial state: all fields are `null`.
 
-### Actions
+**Actions:**
 
 | Action | Signature | Called by |
 |---|---|---|
@@ -65,14 +72,11 @@ Initial state: all fields are `null`.
 
 `reset()` sets all state back to the initial `null` state and navigates to `/`.
 
-### Usage
-
 ```typescript
 import { useBooking } from "../context/BookingContext";
 
 function MyComponent() {
   const { searchParams, rooms, selectRoom, reset } = useBooking();
-  // ...
 }
 ```
 
@@ -80,12 +84,11 @@ function MyComponent() {
 
 ---
 
-## Route Guards and Navigation Logic
+### Route Guards and Navigation Logic
 
 File: `src/App.tsx`
 
-### GuardedRoute
-
+**GuardedRoute:**
 ```typescript
 function GuardedRoute({ children }: { children: JSX.Element }) {
   const { searchParams } = useBooking();
@@ -94,12 +97,11 @@ function GuardedRoute({ children }: { children: JSX.Element }) {
 }
 ```
 
-Guards `/rooms` and `/booking`. If `searchParams` is `null` (user navigates directly by URL without searching), they are redirected to `/`.
+Guards `/rooms` and `/booking`. If `searchParams` is `null`, the user is redirected to `/`.
 
-`/confirmation` is not guarded. Direct navigation shows the confirmation page with conditional rendering (room/guest info only appears if context has values).
+`/confirmation` is not guarded — direct navigation shows the page with conditional rendering.
 
-### Navigation Flow
-
+**Navigation flow:**
 ```
 / (SearchPage)
   → on search success: navigate("/rooms")
@@ -118,12 +120,12 @@ Guards `/rooms` and `/booking`. If `searchParams` is `null` (user navigates dire
 
 ---
 
-## API Client
+### API Client (Booking Widget)
 
 File: `src/api/client.ts`
 
 Axios instance configured with:
-- `baseURL`: `import.meta.env.VITE_API_BASE_URL ?? "/api"` (falls back to `/api` for production)
+- `baseURL`: `import.meta.env.VITE_API_BASE_URL ?? "/api"`
 - `Content-Type: application/json` header
 
 **Response error interceptor** maps HTTP errors to user-friendly `Error` objects:
@@ -135,213 +137,101 @@ Axios instance configured with:
 | 502 or 504 | `"Service temporarily unavailable. Please try again in a moment."` |
 | 500+ | `"Something went wrong. Please try again."` |
 
-All pages catch errors as `err instanceof Error ? err.message : "..."` and display them inline via `<ErrorMessage>`.
+---
+
+### Pages
+
+**SearchPage** (`src/pages/SearchPage.tsx`)
+- On mount: fetches hotel name from `GET /api/account`, displays as `<h1>`.
+- User selects dates (default: today/tomorrow) and guest count (default: 2).
+- On search: converts ISO dates to DD-MM-YYYY → `GET /api/rooms` → stores `searchParams` + `rooms` in context → navigate to `/rooms`.
+
+**RoomsPage** (`src/pages/RoomsPage.tsx`)
+- On mount: fetches amenity definitions from `GET /api/amenities`, flattens them by ID.
+- Filters rooms: `available > 0 && adults >= searchParams.adults`. Sorts by minimum plan price ascending.
+- Each room rendered as `<RoomCard>`.
+
+**BookingPage** (`src/pages/BookingPage.tsx`)
+- 2-column layout: `<GuestForm>` + agreement checkbox + submit on the left; `<BookingSummary>` on the right.
+- Submit enabled only when `formValid && agreed && !loading`.
+- On submit: `POST /api/booking` → `setGuest(data)` → navigate to `/confirmation`.
+
+**ConfirmationPage** (`src/pages/ConfirmationPage.tsx`)
+- Reads `selectedRoom`, `searchParams`, `guest` from context (all conditionally rendered).
+- "Вернуться к поиску" button: `reset()` → navigate to `/`.
 
 ---
 
-## Pages
+### Components
 
-### SearchPage (`src/pages/SearchPage.tsx`)
-
-**On mount:** Fetches hotel name from `GET /api/account` and displays it as `<h1>` if available. Errors are silently ignored.
-
-**Local state:**
-- `checkIn` — ISO date string, default: today
-- `checkOut` — ISO date string, default: tomorrow
-- `guests` — number, default: 2
-- `loading` / `error`
-
-**Search action:**
-1. Converts ISO dates to DD-MM-YYYY via `toApiDate()`
-2. `GET /api/rooms?dfrom=...&dto=...`
-3. Stores `searchParams` + `rooms` in context
-4. Navigates to `/rooms`
-
-Form and button are disabled during loading. Error shows with a retry button.
-
----
-
-### RoomsPage (`src/pages/RoomsPage.tsx`)
-
-**On mount:** Fetches amenity definitions from `GET /api/amenities`. The response is flattened from two-level groups into a flat `Record<string, Amenity>` by `flattenAmenities()`. Errors are silently ignored (amenity display is non-critical).
-
-**Room filtering and sorting:**
-```typescript
-const filtered = rooms
-  .filter((r) => r.available > 0 && r.adults >= searchParams.adults)
-  .sort((a, b) => getMinPrice(a) - getMinPrice(b));
-
-function getMinPrice(room: Room): number {
-  return Math.min(...Object.values(room.plans).map((p) => p.price));
-}
-```
-
-**Empty state:** When no rooms match, shows a message with a "← Вернуться к поиску" link.
-
-Each room is rendered as a `<RoomCard>` receiving `room` and `amenityDefs`.
-
----
-
-### BookingPage (`src/pages/BookingPage.tsx`)
-
-Layout: 2-column grid. Left column (2/3): `<GuestForm>` + agreement checkbox + submit button. Right column (1/3): `<BookingSummary>`.
-
-Returns `null` immediately if `selectedRoom`, `selectedPlan`, or `searchParams` is null (GuardedRoute handles the redirect case; this is a safety guard for the rendering path).
-
-**Submit button** is enabled only when `formValid && agreed && !loading`.
-
-**POST payload:**
-```typescript
-{
-  dfrom: searchParams.dfrom,
-  dto: searchParams.dto,
-  planId: selectedPlan.id,
-  adults: searchParams.adults,
-  roomTypeId: selectedRoom.id,
-  guest: guestData   // from GuestForm (phone already stripped to +7XXXXXXXXXX)
-}
-```
-
----
-
-### ConfirmationPage (`src/pages/ConfirmationPage.tsx`)
-
-Reads `selectedRoom`, `searchParams`, and `guest` from context. All three are conditionally rendered — the page does not crash if they are null (e.g., on direct URL access).
-
-The "Вернуться к поиску" button calls `reset()` then navigates to `/`.
-
----
-
-## Components
-
-### DatePicker (`src/components/date-picker.tsx`)
-
+**DatePicker** (`src/components/date-picker.tsx`)
 Props: `checkIn: string`, `checkOut: string`, `onChange: (checkIn, checkOut) => void`, `disabled?: boolean`
+Native `<input type="date">`. Auto-correction: if `checkIn >= checkOut`, `checkOut` is auto-set to `checkIn + 1 day`. Dates are ISO (`YYYY-MM-DD`) internally; conversion to `DD-MM-YYYY` happens in `SearchPage`.
 
-Uses native `<input type="date">`. Auto-correction: if `checkIn >= checkOut`, `checkOut` is auto-set to `checkIn + 1 day`. The `min` attribute is set on both inputs (`today` for check-in, `checkIn + 1 day` for check-out).
-
-Labels are in Russian: "Заезд" (check-in) and "Выезд" (check-out), matching the Russian UI language used throughout the widget.
-
-Dates are in ISO format (`YYYY-MM-DD`) internally; conversion to `DD-MM-YYYY` happens in `SearchPage`.
-
----
-
-### GuestCounter (`src/components/guest-counter.tsx`)
-
+**GuestCounter** (`src/components/guest-counter.tsx`)
 Props: `value: number`, `onChange: (value: number) => void`, `disabled?: boolean`
+Range: 1–10. +/- buttons disabled at the limits.
 
-Range: 1–10. Uses +/- buttons. Buttons are disabled at the limits.
-
----
-
-### PhotoGallery (`src/components/photo-gallery.tsx`)
-
+**PhotoGallery** (`src/components/photo-gallery.tsx`)
 Props: `photos: RoomPhoto[]`
+256×192 px container. Sorts photos by `order` field (immutable copy). Prev/next arrows on hover, circular navigation, dot indicators. Empty state: grey placeholder.
 
-Renders a 256×192 px image container. Sorts photos by `order` field (immutable copy via `[...photos].sort()`). Shows prev/next arrows on hover when more than one photo. Navigation is circular. Dot indicators shown at the bottom.
-
-Empty state: grey placeholder with "No photos" text.
-
----
-
-### RoomCard (`src/components/room-card.tsx`)
-
+**RoomCard** (`src/components/room-card.tsx`)
 Props: `room: Room`, `amenityDefs: Record<string, Amenity>`
+Horizontal card: `<PhotoGallery>` left, room info right. Includes name, max guests, availability, `<AmenityList>`, `<PlanSelector>`, price, "Забронировать" button. On click: `selectRoom + selectPlan + navigate("/booking")`.
 
-Renders a horizontal card: `<PhotoGallery>` on the left, room info on the right. Room info includes: name (`name_ru`), max guests (`adults`), availability count, `<AmenityList>`, `<PlanSelector>`, price, and "Забронировать" button.
-
-On "Забронировать": calls `selectRoom(room)` + `selectPlan(plan)` + `navigate("/booking")`.
-
-Plan defaults to the first key in `room.plans`. Price updates when the selected plan changes.
-
----
-
-### AmenityList (`src/components/amenity-list.tsx`)
-
+**AmenityList** (`src/components/amenity-list.tsx`)
 Props: `amenityIds: Record<string, { value: string }>`, `definitions: Record<string, Amenity>`
+Resolves amenity IDs against definitions. Amenity ID `"1"` (area) renders as `"32 m²"`. Icons rendered as `<img>`.
 
-Resolves each amenity ID against `definitions`. Amenity ID `"1"` (area) is rendered as `"32 m²"`. Boolean amenities render the name only. Icons are rendered as `<img>` from the `icon` URL.
-
----
-
-### PlanSelector (`src/components/plan-selector.tsx`)
-
+**PlanSelector** (`src/components/plan-selector.tsx`)
 Props: `plans: Record<string, RoomPlan>`, `selectedPlanId: string`, `onChange: (planId: string) => void`
+`<select>` with one `<option>` per plan. Label: `plan.name_ru ?? plan.name`.
 
-Renders a `<select>` with one `<option>` per plan. Option label: `plan.name_ru ?? plan.name`.
-
----
-
-### GuestForm (`src/components/guest-form.tsx`)
-
+**GuestForm** (`src/components/guest-form.tsx`)
 Props: `onValidChange: (valid: boolean, data: GuestData | null) => void`, `disabled?: boolean`
+Fields: name, surname, phone, email, notes (optional). Phone formatted as `+7(XXX) XXX-XX-XX` during input, stripped to `+7XXXXXXXXXX` before passing to callback. Errors shown on blur. `onValidChange(true, data)` when all fields valid.
 
-Fields: name, surname, phone, email, notes (optional).
-
-**Phone formatting:** As the user types, the phone field is formatted to `+7(XXX) XXX-XX-XX` display format in real time. Before passing to `onValidChange`, the value is stripped back to `+7XXXXXXXXXX` via `stripPhone()`.
-
-**Validation rules:**
-- `name`, `surname`: non-empty after trim
-- `phone`: must match `/^\+7\(\d{3}\) \d{3}-\d{2}-\d{2}$/` (display format)
-- `email`: must match `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`
-
-Errors shown only on touched fields (on blur). `onValidChange` is called on every field change, passing `(true, guestData)` when all fields are valid, `(false, null)` otherwise.
-
----
-
-### BookingSummary (`src/components/booking-summary.tsx`)
-
+**BookingSummary** (`src/components/booking-summary.tsx`)
 Props: `room: Room`, `plan: RoomPlan`, `searchParams: SearchParams`
+Sidebar: room photo, name, dates, guest count, plan name, total price.
 
-Sidebar card showing: room photo (first by `order`), room name, check-in/out dates, guest count, plan name, and total price.
+**LoadingSpinner** (`src/components/loading-spinner.tsx`)
+Props: `size?: "sm" | "md"`. Animated SVG spinner.
 
-Note: uses `room.photos.sort()` (in-place mutation — known minor issue from audit).
-
----
-
-### LoadingSpinner (`src/components/loading-spinner.tsx`)
-
-Props: `size?: "sm" | "md"`. Renders an animated SVG spinner. Used inside buttons and page-level loading states.
+**ErrorMessage** (`src/components/error-message.tsx`)
+Props: `message: string`, `onRetry?: () => void`. Error text block with optional retry link.
 
 ---
 
-### ErrorMessage (`src/components/error-message.tsx`)
+### Styling
 
-Props: `message: string`, `onRetry?: () => void`. Renders an error text block. If `onRetry` is provided, a "Try again" link is shown.
+Framework: Tailwind CSS v3.
 
----
-
-## Styling
-
-Framework: Tailwind CSS v3 with PostCSS and Autoprefixer.
-
-Color palette used:
-- Primary: `blue-600` / `blue-700` (buttons, links, focus rings)
-- Background: `gray-50` (page background), `white` (cards)
-- Text: `gray-900` (headings), `gray-700` (labels), `gray-600` (secondary), `gray-500` (muted)
+Color palette:
+- Primary: `blue-600` / `blue-700` (buttons, links)
+- Background: `gray-50` (page), `white` (cards)
+- Text: `gray-900` (headings), `gray-700` (labels), `gray-600` (secondary)
 - Error: `red-400` / `red-500`
-- Success: `green-100` / `green-600` (confirmation checkmark)
 
-Page transitions: `PageWrapper` applies the `page-enter` CSS class (defined in `src/index.css`) on each route change via the `key={location.pathname}` prop.
+Page transitions: `PageWrapper` applies the `page-enter` CSS class on each route change via `key={location.pathname}`.
 
-Desktop-only layout for MVP. No responsive breakpoints implemented.
+Desktop-only layout for MVP. No responsive breakpoints.
 
 ---
 
-## iframe Auto-Height Hook
+### iframe Auto-Height Hook
 
-Defined in `src/App.tsx` as `useIframeResize()`. The hook observes the `#root` element (not `document.body`) to get the true rendered content height:
+Defined in `src/App.tsx` as `useIframeResize()`. Observes `#root` (not `document.body`) to avoid a feedback loop inside iframes where `body.scrollHeight === iframe height`.
 
 ```typescript
 function useIframeResize() {
   useEffect(() => {
     const root = document.getElementById("root");
     if (!root) return;
-
     const sendHeight = () => {
       window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
     };
-
     const observer = new ResizeObserver(sendHeight);
     observer.observe(root);
     sendHeight();
@@ -350,47 +240,144 @@ function useIframeResize() {
 }
 ```
 
-**Why `#root`, not `document.body`:** Inside an iframe, `body.scrollHeight` equals the current iframe viewport height, creating a feedback loop where the iframe grows endlessly. `root.scrollHeight` reflects only the actual rendered content height.
+`PageWrapper` fires additional messages on every route change (resize + `scrollToWidget`).
 
-`PageWrapper` fires additional messages on every route change:
-```typescript
-useEffect(() => {
-  window.scrollTo(0, 0);
-  const root = document.getElementById("root");
-  if (root) {
-    window.parent.postMessage({ type: "resize", height: root.scrollHeight }, "*");
-  }
-  window.parent.postMessage({ type: "scrollToWidget" }, "*");
-}, [location.pathname]);
-```
-
-The `scrollToWidget` message instructs the parent page to scroll the iframe into view when the user navigates between steps.
-
-## Iframe Detection and Body Overflow
-
-File: `src/main.tsx`
-
-Before mounting React, `main.tsx` detects whether the app is running inside an iframe:
-
+**Iframe detection** (`src/main.tsx`):
 ```tsx
 if (window.self !== window.top) {
   document.body.classList.add("in-iframe");
 }
 ```
+`in-iframe` class activates `overflow: hidden` (in `index.css`), preventing double scrollbars.
 
-File: `src/index.css`
+**Page height:** No page uses `min-h-screen` — `100vh` inside an iframe equals the iframe height, which would prevent the iframe from shrinking.
 
-The `in-iframe` class controls overflow behaviour:
-```css
-body { overflow: auto; }
-body.in-iframe { overflow: hidden; }
+---
+
+## Admin Panel
+
+File locations: `admin/src/`
+
+### App Structure
+
+```
+App (admin/src/App.tsx)
+└── ThemeProvider (MUI default theme)
+    └── BrowserRouter
+        ├── Navbar
+        └── Routes
+            ├── /          → CoefficientsPage
+            └── /settings  → SettingsPage ("Coming soon" placeholder)
 ```
 
-When accessed directly in a browser, `overflow: auto` allows normal mouse-wheel scrolling. When embedded in an iframe, `overflow: hidden` prevents the widget from rendering its own scrollbar — the parent page handles scrolling.
+Entry point: `admin/src/main.tsx`. Dev server on port 5174. The Vite dev proxy forwards all `/api/*` requests to `http://localhost:3000`.
 
-## Page Height Constraints
+---
 
-None of the page components (`SearchPage`, `RoomsPage`, `BookingPage`, `ConfirmationPage`) use Tailwind's `min-h-screen` class. Inside an iframe, `100vh` = the current iframe height, which would prevent the iframe from shrinking when navigating to a page with less content. Pages use explicit padding to control their vertical spacing instead.
+### Navbar (`admin/src/components/Navbar.tsx`)
+
+MUI `AppBar` with a `Toolbar` containing the app title and a `Tabs` component. Tab routes:
+
+| Tab label | Path |
+|---|---|
+| Коэффициенты | `/` |
+| Настройки | `/settings` |
+
+Tab navigation uses `useNavigate`. Active tab is resolved from `useLocation().pathname` with a fallback to tab 0 for unknown paths.
+
+---
+
+### CoefficientsPage (`admin/src/pages/CoefficientsPage.tsx`)
+
+The main admin view. Displays all rooms in an editable MUI table with auto-save on blur.
+
+**State:**
+
+| State | Type | Description |
+|---|---|---|
+| `coefficients` | `Coefficient[]` | Loaded data, sorted by `roomName` (`ru` locale) |
+| `tableState` | `TableState` | Per-cell edit state (value, status, error) |
+| `loading` | `boolean` | Initial load in progress |
+| `loadError` | `boolean` | Initial load failed |
+| `snackbar` | `{ open, message }` | Error notification |
+
+`TableState = Record<string, RowState>` — keyed by `bnovoId` (string).
+`RowState = Record<CoefKey, CellState>` — one entry per coefficient column.
+`CellState = { value: string; status: 'idle' | 'success' | 'error'; error: string }`.
+
+**Data load:**
+- On mount, `getCoefficients()` is called.
+- Data is sorted by `roomName` with `localeCompare('ru')`.
+- On error, a "Повторить" button re-triggers the load.
+- Loading state shows MUI `Skeleton` rows.
+
+**Edit and auto-save:**
+- Each coefficient cell renders a MUI `TextField` (size="small", width 80px).
+- `handleChange` updates the cell value in `tableState` without saving.
+- `handleBlur` fires on field blur:
+  1. If value unchanged (compared to last saved value), no API call is made.
+  2. `parseValue()` validates: strips whitespace, normalizes comma to dot, rejects non-positive values.
+  3. If invalid: sets `cell.error = 'Введите положительное число'`, no API call.
+  4. If valid: calls `patchCoefficient(bnovoId, { [key]: num })`.
+  5. On success: updates `coefficients` state, sets `cell.status = 'success'`, clears after 1.5s.
+  6. On error: sets `cell.status = 'error'`, opens Snackbar, clears after 1.5s.
+
+**Cell background:**
+- `success` → `rgba(76, 175, 80, 0.2)` (green tint)
+- `error` → `rgba(244, 67, 54, 0.2)` (red tint)
+- `idle` → no background
+
+**Table columns:** Room name (read-only) | Коэф. 1 | Коэф. 2 | Коэф. 3
+
+**Snackbar:** Appears at the bottom-center of the screen on save error. Auto-hides after 4 seconds.
+
+---
+
+### API Client (Admin Panel)
+
+File: `admin/src/api/client.ts`
+
+Axios instance with `baseURL: '/api/admin'`. The Vite proxy routes this to `http://localhost:3000/api/admin`.
+
+```typescript
+export const getRooms = (): Promise<Room[]> =>
+  api.get<{ data: Room[] }>('/rooms').then((r) => r.data.data);
+
+export const getCoefficients = (): Promise<Coefficient[]> =>
+  api.get<{ data: Coefficient[] }>('/coefficients').then((r) => r.data.data);
+
+export const patchCoefficient = (
+  bnovoId: string,
+  data: Partial<Pick<Coefficient, 'coefficient1' | 'coefficient2' | 'coefficient3'>>,
+): Promise<Coefficient> =>
+  api.patch<{ data: Coefficient }>(`/coefficients/${bnovoId}`, data).then((r) => r.data.data);
+```
+
+All three functions unwrap the `{ data: ... }` response envelope. The generic parameter reflects the actual envelope shape (`{ data: T }`), and `.then(r => r.data.data)` extracts the payload.
+
+---
+
+### Admin TypeScript Types
+
+File: `admin/src/types/index.ts`
+
+```typescript
+export interface Room {
+  bnovoId: string;
+  name: string;
+}
+
+export interface Coefficient {
+  bnovoId: string;
+  roomName: string;
+  coefficient1: number;
+  coefficient2: number;
+  coefficient3: number;
+  updatedAt: string;
+}
+```
+
+`bnovoId` is `string` in both interfaces — matching the Mongoose schema (`type: String`) and the Bnovo API's string room IDs.
 
 ---
 
@@ -400,37 +387,26 @@ None of the page components (`SearchPage`, `RoomsPage`, `BookingPage`, `Confirma
 
 > **NOTE:** Этот раздел — перевод на русский язык для удобства владельца проекта. Агент разработки использует только английскую секцию выше.
 
-## Иерархия компонентов и поток страниц
+## Виджет бронирования
 
-Приложение состоит из 4 страниц: SearchPage (поиск), RoomsPage (каталог номеров), BookingPage (форма гостя), ConfirmationPage (подтверждение). Навигация через React Router v6. Страницы `/rooms` и `/booking` защищены `GuardedRoute` — редирект на `/` если `searchParams` = null.
+4 страницы: SearchPage → RoomsPage → BookingPage → ConfirmationPage. Навигация через React Router v6. Страницы `/rooms` и `/booking` защищены `GuardedRoute` (редирект на `/` при `searchParams === null`).
 
-## BookingContext
+**BookingContext:** глобальное состояние — `searchParams`, `rooms`, `selectedRoom`, `selectedPlan`, `guest`. Все изначально `null`. `reset()` обнуляет и переходит на `/`.
 
-Глобальное состояние: `searchParams`, `rooms`, `selectedRoom`, `selectedPlan`, `guest`. Все поля — `null` в начале. Действия: `setSearchParams`, `setRooms`, `selectRoom`, `selectPlan`, `setGuest`, `reset`. Хук `useBooking()` возвращает состояние и действия.
+**API-клиент виджета:** Axios с базовым URL `/api`. Интерцептор ошибок: нет сети → понятное сообщение; 400 → «Invalid request»; 502/504 → «Service temporarily unavailable»; 5xx → «Something went wrong».
 
-## API-клиент
+**Стилизация:** Tailwind CSS v3, только десктоп, переходы через класс `page-enter`.
 
-Axios с базовым URL `/api`. Интерцептор ответов преобразует HTTP-ошибки в понятные пользователю сообщения: нет сети → «Connection error», 400 → «Invalid request», 502/504 → «Service temporarily unavailable», 5xx → «Something went wrong».
+**Авторесайз iframe:** хук `useIframeResize` следит за `#root` (не `body`) через `ResizeObserver`, отправляет `postMessage({ type: "resize", height })`. `main.tsx` добавляет `in-iframe` к `<body>` при `window.self !== window.top`, активируя `overflow: hidden`.
 
-## Ключевые компоненты
+## Панель администратора
 
-- **DatePicker:** нативный `<input type="date">`, метки «Заезд» / «Выезд», автокоррекция если заезд ≥ выезд.
-- **GuestCounter:** +/− кнопки, диапазон 1–10.
-- **PhotoGallery:** слайдер с навигацией стрелками, сортировка по `order`.
-- **GuestForm:** маска телефона `+7(XXX) XXX-XX-XX`, валидация по blur, отправляет `+7XXXXXXXXXX`.
-- **RoomCard:** карточка с фотогалереей, удобствами, PlanSelector, ценой.
-- **BookingSummary:** боковая сводка: фото, название, даты, гости, тариф, итого.
+Отдельное React-приложение в `admin/`. Порт 5174. Vite-прокси: `/api/*` → `localhost:3000`.
 
-## Стилизация
+**Структура:** `App` → `ThemeProvider` (MUI) → `BrowserRouter` → `Navbar` + `Routes`. Маршруты: `/` → `CoefficientsPage`, `/settings` → заглушка.
 
-Tailwind CSS v3. Цветовая схема: синий (primary), серый (фоны и текст). Только десктоп (MVP). CSS-класс `page-enter` добавляется на каждую страницу при переходе.
+**Navbar:** MUI `AppBar` с вкладками «Коэффициенты» и «Настройки». Навигация через `useNavigate`.
 
-## Авторесайз iframe и определение iframe
+**CoefficientsPage:** загружает коэффициенты при монтировании (`getCoefficients()`), сортирует по `roomName` (ru). Отображает редактируемую таблицу MUI. При потере фокуса (`onBlur`): проверяет изменение → валидирует → отправляет `PATCH /api/admin/coefficients/:bnovoId`. Успех → зелёная подсветка на 1.5с. Ошибка → красная подсветка + Snackbar.
 
-`main.tsx`: перед монтированием React добавляет класс `in-iframe` к `<body>` при `window.self !== window.top`. В CSS (`index.css`) этот класс активирует `overflow: hidden` — при прямом доступе в браузере `overflow: auto` и скролл работает штатно.
-
-Хук `useIframeResize` (в `App.tsx`) наблюдает за элементом `#root` через `ResizeObserver` и отправляет `postMessage({ type: "resize", height: root.scrollHeight })`. Именно `#root`, а не `body`: внутри iframe `body.scrollHeight = высота iframe`, что создаёт петлю роста. `root.scrollHeight` — реальная высота контента.
-
-При смене маршрута `PageWrapper` дополнительно вызывает `window.scrollTo(0, 0)`, обновляет размер iframe и отправляет `postMessage({ type: "scrollToWidget" })` для прокрутки родительской страницы к виджету.
-
-Все страницы не используют `min-h-screen` — иначе при переходе на более короткую страницу iframe не мог бы уменьшиться.
+**API-клиент панели:** Axios с baseURL `/api/admin`. Все функции распаковывают обёртку `{ data: T }` через `r.data.data`. `bnovoId` везде `string`.
