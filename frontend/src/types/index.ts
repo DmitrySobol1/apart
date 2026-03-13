@@ -79,5 +79,8 @@ export interface BookingRequest {
 
 export interface BookingResponse {
   success: boolean;
-  message: string;
+  message?: string;
+  bookingNumber?: string;
+  paymentUrl?: string;
+  amount?: number;
 }

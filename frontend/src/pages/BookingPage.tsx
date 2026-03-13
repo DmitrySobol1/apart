@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useBooking } from "../context/BookingContext";
 import client from "../api/client";
@@ -11,6 +11,7 @@ import ErrorMessage from "../components/error-message";
 export default function BookingPage() {
   const { selectedRoom, selectedPlan, searchParams, setGuest } = useBooking();
   const navigate = useNavigate();
+  const submittingRef = useRef(false);
 
   const [guestData, setGuestData] = useState<GuestData | null>(null);
   const [formValid, setFormValid] = useState(false);
@@ -30,11 +31,12 @@ export default function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit || !guestData) return;
+    if (submittingRef.current || !canSubmit || !guestData) return;
+    submittingRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      await client.post<BookingResponse>("/booking", {
+      const response = await client.post<BookingResponse>("/booking", {
         dfrom: searchParams.dfrom,
         dto: searchParams.dto,
         planId: selectedPlan.id,
@@ -42,12 +44,23 @@ export default function BookingPage() {
         roomTypeId: selectedRoom.id,
         guest: guestData,
       });
+      if (!response.data.success) {
+        setError(response.data.message ?? "Произошла ошибка. Попробуйте ещё раз.");
+        return;
+      }
       setGuest(guestData);
-      navigate("/confirmation");
+      navigate("/confirmation", {
+        state: {
+          paymentUrl: response.data.paymentUrl,
+          bookingNumber: response.data.bookingNumber,
+          amount: response.data.amount,
+        },
+      });
     } catch {
-      setError("Booking request failed. Please try again.");
+      setError("Не удалось создать бронирование. Попробуйте ещё раз.");
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -83,6 +96,13 @@ export default function BookingPage() {
             {error && (
               <div className="mt-4">
                 <ErrorMessage message={error} />
+                <button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                  className="mt-3 w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium text-sm transition-colors cursor-pointer"
+                >
+                  Повторить
+                </button>
               </div>
             )}
 
