@@ -11,6 +11,14 @@ vi.mock("../services/bnovo-client", () => ({
   },
 }));
 
+vi.mock("../services/bnovo-booking", () => ({
+  createBooking: vi.fn().mockResolvedValue({
+    bookingNumber: "12345_010626",
+    paymentUrl: "https://payment.bnovo.ru/v2/?transaction=book_test",
+    amount: 5500,
+  }),
+}));
+
 async function buildApp(): Promise<express.Express> {
   const app = express();
   app.use(express.json());
