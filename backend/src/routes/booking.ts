@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
+import { createBooking } from "../services/bnovo-booking.js";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ const bookingSchema = z.object({
   }),
 });
 
-router.post("/", (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   const parsed = bookingSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -34,16 +35,24 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
-  const { dfrom, dto } = parsed.data;
+  const { dfrom, dto, planId, adults, roomTypeId, guest } = parsed.data;
 
   if (parseDate(dto) <= parseDate(dfrom)) {
     res.status(400).json({ errors: { dto: ["dto must be after dfrom"] } });
     return;
   }
 
-  console.log(new Date().toISOString(), "booking request", parsed.data);
+  console.log(new Date().toISOString(), "booking attempt", { roomTypeId, dfrom, dto, email: guest.email });
 
-  res.json({ success: true, message: "Request accepted" });
+  try {
+    const { bookingNumber, paymentUrl, amount } = await createBooking({ dfrom, dto, planId, adults, roomTypeId, guest });
+    console.log(new Date().toISOString(), "booking success", { bookingNumber, amount });
+    res.json({ success: true, bookingNumber, paymentUrl, amount });
+  } catch (err) {
+    console.error(new Date().toISOString(), "booking error", err);
+    const message = err instanceof Error ? err.message : "Bnovo booking failed: unknown error";
+    res.status(500).json({ success: false, message });
+  }
 });
 
 export default router;
