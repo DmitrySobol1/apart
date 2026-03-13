@@ -1,7 +1,7 @@
 ---
 description: System architecture overview for the Apart-NN booking widget and admin panel
 status: current
-version: 2.0.0
+version: 2.1.0
 ---
 
 # Architecture — Apart-NN Booking Widget
@@ -218,6 +218,8 @@ npm run seed:rooms
 
 The sync is idempotent. Re-running updates room names and skips existing coefficient records (`$setOnInsert` only fires on insert).
 
+**Date format requirement:** `bnovoClient.getRooms()` expects dates in `DD-MM-YYYY` format. The internal `formatDate()` helper in `room-sync.ts` builds this explicitly with `getDate()`/`getMonth()`/`getFullYear()`. Using `toISOString().slice(0, 10)` instead produces `YYYY-MM-DD`, which the Bnovo API rejects with HTTP 406.
+
 ---
 
 ## Data Flow
@@ -324,6 +326,8 @@ Observing `#root` instead of `document.body` is critical: in an iframe, `body.sc
 ## Синхронизация номеров
 
 `npm run seed:rooms` вызывает `syncRooms()`: запрашивает Bnovo API по 10 диапазонам дат с задержкой 1–2с между запросами, дедуплицирует номера, делает upsert в `rooms` и создаёт соответствующие записи в `coefficients` (`$setOnInsert`, коэффициенты по умолчанию = 1). Идемпотентна.
+
+**Формат дат:** `bnovoClient.getRooms()` принимает даты в формате `DD-MM-YYYY`. Функция `formatDate()` формирует их явно через `getDate()`/`getMonth()`/`getFullYear()`. Использование `toISOString().slice(0, 10)` даёт `YYYY-MM-DD`, что приводит к HTTP 406 от Bnovo API.
 
 ## Безопасность
 

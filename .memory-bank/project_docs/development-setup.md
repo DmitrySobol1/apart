@@ -1,7 +1,7 @@
 ---
 description: Local development setup, environment variables, npm scripts, and testing instructions
 status: current
-version: 2.0.0
+version: 2.1.0
 ---
 
 # Development Setup
@@ -146,6 +146,8 @@ This runs `src/scripts/seed-rooms.ts` which calls `syncRooms()`. The script:
 4. Creates `coefficients` documents (defaults: all `1`) for newly discovered rooms.
 
 Re-running is safe — the sync is idempotent. Existing coefficient values are not overwritten.
+
+**Note on date format:** the sync service calls `bnovoClient.getRooms()` with dates in `DD-MM-YYYY` format. The Bnovo API returns HTTP 406 for any other format. If you modify `room-sync.ts`, do not use `toISOString().slice(0, 10)` for date formatting — it produces `YYYY-MM-DD`, which the API rejects.
 
 Expected output:
 ```
@@ -323,6 +325,8 @@ cd backend && npm run seed:rooms
 ```
 
 Скрипт запрашивает Bnovo по 10 диапазонам дат, дедуплицирует номера, делает upsert в коллекцию `rooms` и создаёт записи `coefficients` (по умолчанию = 1) для новых номеров. Идемпотентен. Требует запущенного MongoDB и заполненного `.env`.
+
+**Важно:** `bnovoClient.getRooms()` принимает даты в формате `DD-MM-YYYY`. При использовании `toISOString().slice(0, 10)` (формат `YYYY-MM-DD`) Bnovo API вернёт HTTP 406.
 
 ## Переменные окружения
 

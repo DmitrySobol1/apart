@@ -1,7 +1,7 @@
 ---
 description: Backend API endpoint reference for the Apart-NN booking widget and admin panel
 status: current
-version: 2.0.0
+version: 2.1.0
 ---
 
 # API Reference — Apart-NN Backend
@@ -406,6 +406,18 @@ curl -X PATCH http://localhost:3000/api/admin/coefficients/274552 \
 
 ---
 
+## Bnovo API Integration Notes
+
+### Date format
+
+All date parameters sent to the Bnovo public API must use `DD-MM-YYYY` format (e.g. `20-03-2026`). The Bnovo API returns HTTP 406 for any other format, including the ISO `YYYY-MM-DD` format.
+
+This applies to every layer that calls `bnovoClient.getRooms()` directly:
+- `GET /api/rooms` route — enforces `DD-MM-YYYY` via Zod regex before forwarding.
+- `room-sync.ts` service — `formatDate()` produces `DD-MM-YYYY` using explicit `getDate()`/`getMonth()`/`getFullYear()` calls. **Do not replace this with `toISOString().slice(0, 10)`** — that produces `YYYY-MM-DD` and will cause 406 errors.
+
+---
+
 ## Error Handler
 
 All unhandled errors pass through the Express `errorHandler` middleware:
@@ -446,6 +458,10 @@ All errors are logged with an ISO timestamp:
 - **GET /api/admin/rooms** — все номера из коллекции `rooms`, отсортированы по имени. Ответ: `{ data: AdminRoomResponse[] }`.
 - **GET /api/admin/coefficients** — коэффициенты с именами номеров, отсортированы по имени. Ответ: `{ data: AdminCoefficientResponse[] }`. Объединение с именами делается на сервере через Map.
 - **PATCH /api/admin/coefficients/:bnovoId** — обновить один или несколько коэффициентов. Значение > 0, запятая нормализуется в точку. При отсутствии bnovoId → 404. Ответ: `{ success: true, data: { bnovoId, coefficient1/2/3, updatedAt } }`.
+
+## Формат дат Bnovo API
+
+Все параметры дат, передаваемые в Bnovo public API, должны быть в формате `DD-MM-YYYY` (например `20-03-2026`). При использовании любого другого формата, включая ISO `YYYY-MM-DD`, API возвращает HTTP 406. Функция `formatDate()` в `room-sync.ts` использует явные вызовы `getDate()`/`getMonth()`/`getFullYear()` — не заменяйте её на `toISOString().slice(0, 10)`.
 
 ## Обработка ошибок
 

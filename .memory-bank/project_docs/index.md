@@ -1,7 +1,7 @@
 ---
 description: Index of all project documentation files in .memory-bank/project_docs/
 status: current
-version: 2.0.0
+version: 2.1.0
 ---
 
 # Project Documentation Index
@@ -35,6 +35,8 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 - Admin API: `GET /api/admin/rooms`, `GET /api/admin/coefficients`, `PATCH /api/admin/coefficients/:bnovoId`
 - Admin panel (`admin/`): React + MUI, separate Vite app on port 5174, CoefficientsPage with editable table and auto-save
 - `MONGODB_URI` and `ADMIN_URL` environment variables added to backend config
+
+**Bug fix (2026-03-13):** `room-sync.ts` `formatDate()` was producing `YYYY-MM-DD` (via `toISOString().slice(0, 10)`), causing HTTP 406 errors from the Bnovo API. Fixed to output `DD-MM-YYYY` using explicit `getDate()`/`getMonth()`/`getFullYear()` calls. All 43 tests still pass. See `.tasks/task-2/manual_test.md/manual_test.md`.
 
 **What is deferred (post-MVP):**
 - Real Bnovo booking creation (POST /api/booking currently logs only)
@@ -82,6 +84,8 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 **task-1 MVP** завершён. Аудит пройден 2026-03-12.
 
 **task-2** завершён. Аудит пройден 2026-03-13. 43/43 тестов проходят.
+
+**Исправление бага (2026-03-13):** `formatDate()` в `room-sync.ts` формировал даты в формате `YYYY-MM-DD`, что приводило к HTTP 406 от Bnovo API. Исправлено на `DD-MM-YYYY`.
 
 Добавлено в task-2: MongoDB + Mongoose (коллекции `rooms` и `coefficients`), сервис синхронизации номеров, скрипт `seed:rooms`, Admin API (3 эндпоинта), панель администратора (React + MUI, порт 5174, таблица коэффициентов с авто-сохранением).
 
