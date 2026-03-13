@@ -1,0 +1,53 @@
+# Ignore everything
+*
+
+# Allow these files/directories
+!backend/
+!backend/**
+!frontend/
+!frontend/**
+
+# AI FILES
+AGENTS.md
+CLAUDE.md
+README.md
+CHANGELOG.md
+!.gitignore
+!.memory-bank/
+!.memory-bank/**
+.tasks/
+.tasks/**
+fixtures/
+fixtures/**
+
+# Environment files — never commit actual .env
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.cache/
+.turbo/
+
+# Test / coverage
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
