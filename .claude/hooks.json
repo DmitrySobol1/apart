@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STOP_HOOK_CMD='cd frontend && npm run qc && cd ../backend && npm run qc' bash tools/stop-hook.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STOP_HOOK_CMD='cd frontend && npm run qc && cd ../backend && npm run qc' bash tools/stop-hook.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --prefix frontend prettier --write \"frontend/src/**/*.{ts,tsx}\" 2>/dev/null; npx --prefix backend prettier --write \"backend/src/**/*.ts\" 2>/dev/null; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

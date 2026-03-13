@@ -1,12 +1,3 @@
-# Ignore everything
-*
-
-# Allow these files/directories
-!backend/
-!backend/**
-!frontend/
-!frontend/**
-
 # AI FILES
 AGENTS.md
 CLAUDE.md
