@@ -11,6 +11,12 @@ vi.mock("../services/bnovo-client", () => ({
   },
 }));
 
+vi.mock("../services/room-ranking", () => ({
+  applyRoomRanking: vi.fn().mockImplementation((rooms: unknown[]) =>
+    Promise.resolve(rooms.map((r) => ({ ...(r as Record<string, unknown>), numToShowOnFrontend: 3 }))),
+  ),
+}));
+
 vi.mock("../services/bnovo-booking", () => ({
   createBooking: vi.fn().mockResolvedValue({
     bookingNumber: "12345_010626",

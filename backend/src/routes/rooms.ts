@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { bnovoClient } from "../services/bnovo-client";
+import { applyRoomRanking } from "../services/room-ranking";
 import { AppError } from "../middleware/error-handler";
 
 const router = Router();
@@ -51,7 +52,8 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const response = await bnovoClient.getRooms(dfrom, dto);
-    const rooms = response.data.rooms ?? [];
+    const rawRooms = response.data.rooms ?? [];
+    const rooms = await applyRoomRanking(rawRooms);
     cache.set(cacheKey, { data: rooms, expiresAt: Date.now() + CACHE_TTL_MS });
     return res.json(rooms);
   } catch (err) {
