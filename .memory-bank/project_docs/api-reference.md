@@ -1,7 +1,7 @@
 ---
 description: Backend API endpoint reference for the Apart-NN booking widget and admin panel
 status: current
-version: 3.0.0
+version: 4.0.0
 ---
 
 # API Reference — Apart-NN Backend
@@ -27,7 +27,7 @@ Health check. No authentication required.
 
 ### GET /api/rooms
 
-Fetches available room types from Bnovo for the given date range. Results are cached in memory for 5 minutes per `dfrom+dto` key.
+Fetches available room types from Bnovo for the given date range, enriches each room with a ranking score from MongoDB, and returns the result. Results are cached in memory for 5 minutes per `dfrom+dto` key.
 
 **Query parameters:**
 
@@ -77,12 +77,15 @@ Fetches available room types from Bnovo for the given date range. Results are ca
         "prices": { "2026-03-01": "2800.00", "2026-03-02": "2800.00" },
         "price": 5600
       }
-    }
+    },
+    "numToShowOnFrontend": 4.5
   }
 ]
 ```
 
-**Caching:** In-memory, keyed by `dfrom+dto`, TTL 5 minutes. Cache is per server process (resets on restart).
+**`numToShowOnFrontend`:** Added by `applyRoomRanking()` — the sum of `coefficient1 + coefficient2 + coefficient3` for the room from the `coefficients` MongoDB collection. Default value `3` is used when no coefficient record exists or when MongoDB is unavailable. The frontend sorts rooms by this field descending.
+
+**Caching:** In-memory, keyed by `dfrom+dto`, TTL 5 minutes. Cache stores the enriched rooms (including `numToShowOnFrontend`). Cache is per server process (resets on restart).
 
 **Error responses:**
 
@@ -346,6 +349,29 @@ function createBooking(params: BookingParams): Promise<BookingResult>
 
 ---
 
+## Room Ranking Service
+
+File: `backend/src/services/room-ranking.ts`
+
+### applyRoomRanking(rooms)
+
+```typescript
+function applyRoomRanking(
+  rooms: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>>
+```
+
+**Behavior:**
+1. Returns an empty array immediately if `rooms` is empty.
+2. Queries the `coefficients` collection with `Coefficient.find({}).lean()`.
+3. Builds a `Map<bnovoId, score>` where `score = coefficient1 + coefficient2 + coefficient3`.
+4. Spreads each room object and adds `numToShowOnFrontend: score ?? 3`. The default `3` applies when a room has no matching coefficient document.
+5. On MongoDB error: logs the error with `console.error`, returns all rooms with `numToShowOnFrontend: 3` (graceful degradation — no rooms are lost).
+
+**Called by:** `GET /api/rooms` route, after unwrapping the Bnovo response and before caching.
+
+---
+
 ## Admin API Endpoints
 
 All admin endpoints are under `/api/admin`. They require MongoDB to be connected — if not, all return `503`.
@@ -561,7 +587,7 @@ Note: booking creation errors are caught in the route handler itself (not passed
 ## Эндпоинты виджета бронирования
 
 - **GET /health** — проверка работоспособности сервера.
-- **GET /api/rooms** — доступные номера из Bnovo (параметры `dfrom`, `dto` в формате DD-MM-YYYY, кэш 5 мин, ответ — плоский массив).
+- **GET /api/rooms** — доступные номера из Bnovo (параметры `dfrom`, `dto` в формате DD-MM-YYYY). После получения данных из Bnovo вызывается `applyRoomRanking()`, которая добавляет поле `numToShowOnFrontend` (сумма трёх коэффициентов из MongoDB; дефолт: 3). Обогащённый массив кешируется на 5 мин.
 - **GET /api/plans** — метаданные тарифных планов (без цен).
 - **GET /api/amenities** — определения удобств, двухуровневая структура.
 - **GET /api/account** — информация об отеле, плоский объект (бэкенд распаковывает `{"account": {...}}`).
@@ -572,6 +598,10 @@ Note: booking creation errors are caught in the route handler itself (not passed
 `createBooking(params)` — строит тело `application/x-www-form-urlencoded`, отправляет POST с `redirect: 'manual'` и таймаутом 15 секунд через нативный `fetch`, проверяет статус 302, читает заголовок Location, извлекает `bookingNumber`, `bookingAccommodationAmount` (→ amount через `parseFloat`), декодирует `redirectUrl` и извлекает `away_url` (ссылка на оплату). При любой ошибке логирует через `console.error` и выбрасывает исключение.
 
 Обязательные поля формы POST: `servicemode`, `firstroom`, `dfrom`, `dto`, `planId`, `adults`, `children`, `promoCode`, `roomTypes` (JSON), `warrantyType=onlinepay`, `lang=ru`, `guarantee=1`, поля `customer[*]`.
+
+## Сервис ранжирования номеров (`room-ranking.ts`)
+
+`applyRoomRanking(rooms)` — принимает массив номеров (объекты из Bnovo API), запрашивает коллекцию `coefficients` в MongoDB, строит Map `bnovoId → score` (сумма трёх коэффициентов), добавляет поле `numToShowOnFrontend` к каждому номеру. Если для номера нет записи коэффициентов — используется `3`. При ошибке MongoDB — логирует и возвращает все номера с `numToShowOnFrontend: 3`. Вызывается маршрутом `GET /api/rooms` перед кешированием.
 
 ## Admin API эндпоинты (требуют MongoDB)
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useBooking } from "../context/BookingContext";
 import client from "../api/client";
-import type { Amenity, AmenityGroup, Room } from "../types";
+import type { Amenity, AmenityGroup } from "../types";
 import RoomCard from "../components/room-card";
 
 function flattenAmenities(groups: Record<string, AmenityGroup>): Record<string, Amenity> {
@@ -13,11 +13,6 @@ function flattenAmenities(groups: Record<string, AmenityGroup>): Record<string, 
     }
   }
   return result;
-}
-
-function getMinPrice(room: Room): number {
-  const prices = Object.values(room.plans).map((p) => p.price);
-  return prices.length > 0 ? Math.min(...prices) : Infinity;
 }
 
 function formatApiDate(apiDate: string): string {
@@ -40,7 +35,7 @@ export default function RoomsPage() {
 
   const filtered = rooms
     .filter((r) => r.available > 0 && r.adults >= searchParams.adults)
-    .sort((a, b) => getMinPrice(a) - getMinPrice(b));
+    .sort((a, b) => (b.numToShowOnFrontend ?? 3) - (a.numToShowOnFrontend ?? 3));
 
   return (
     <div className="bg-gray-50 p-6">

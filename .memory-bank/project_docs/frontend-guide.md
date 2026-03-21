@@ -1,7 +1,7 @@
 ---
 description: Frontend component hierarchy, state management, routing, and styling reference for the booking widget and admin panel
 status: current
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Frontend Guide — Apart-NN
@@ -180,6 +180,8 @@ interface SearchParams {
 
 `BookingResponse` was updated in task-3 to include `bookingNumber?`, `paymentUrl?`, and `amount?`. Previously it only had `success` and `message?`.
 
+The `Room` interface was updated in task-4 to include `numToShowOnFrontend?: number` — the ranking score attached by the backend's `applyRoomRanking()` service. The field is optional (`?`) because cached responses from before task-4 deployment may not include it; fallback `3` is used where absent.
+
 ---
 
 ### Pages
@@ -191,7 +193,8 @@ interface SearchParams {
 
 **RoomsPage** (`src/pages/RoomsPage.tsx`)
 - On mount: fetches amenity definitions from `GET /api/amenities`, flattens them by ID.
-- Filters rooms: `available > 0 && adults >= searchParams.adults`. Sorts by minimum plan price ascending.
+- Filters rooms: `available > 0 && adults >= searchParams.adults`.
+- Sorts filtered rooms by `numToShowOnFrontend` descending (higher score = shown first). Fallback value `3` used when the field is absent: `(b.numToShowOnFrontend ?? 3) - (a.numToShowOnFrontend ?? 3)`.
 - Each room rendered as `<RoomCard>`.
 
 **BookingPage** (`src/pages/BookingPage.tsx`)
@@ -443,9 +446,13 @@ export interface Coefficient {
 
 4 страницы: SearchPage → RoomsPage → BookingPage → ConfirmationPage. Навигация через React Router v6. Страницы `/rooms` и `/booking` защищены `GuardedRoute` (редирект на `/` при `searchParams === null`). `/confirmation` без guard — при отсутствии `paymentUrl` в Router state редирект на `/` изнутри компонента.
 
+**RoomsPage (обновлён в task-4):** после фильтрации (`available > 0 && adults >= searchParams.adults`) номера сортируются по `numToShowOnFrontend` по убыванию. Fallback: `3`. Ранее сортировка была по минимальной цене тарифного плана.
+
 **BookingContext:** глобальное состояние — `searchParams`, `rooms`, `selectedRoom`, `selectedPlan`, `guest`. Все изначально `null`. `reset()` обнуляет и переходит на `/`.
 
 **Тип BookingResponse (обновлён в task-3):** `{ success: boolean; message?: string; bookingNumber?: string; paymentUrl?: string; amount?: number }`. Ранее содержал только `success` и `message?`.
+
+**Тип Room (обновлён в task-4):** добавлено поле `numToShowOnFrontend?: number` — оценка ранжирования, добавляемая бэкендом через `applyRoomRanking()`. Поле опциональное. RoomsPage сортирует номера по этому полю по убыванию (fallback: `3`).
 
 **BookingPage (task-3):**
 - Защита от двойной отправки: `submittingRef` (`useRef<boolean>`) проверяется синхронно в начале `handleSubmit`, сбрасывается в `finally`. Плюс `loading` state для визуальной блокировки кнопки.

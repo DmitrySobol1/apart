@@ -1,7 +1,7 @@
 ---
 description: Index of all project documentation files in .memory-bank/project_docs/
 status: current
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Project Documentation Index
@@ -18,7 +18,7 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 
 [.memory-bank/project_docs/frontend-guide.md]: Frontend reference for both apps — booking widget: component hierarchy, BookingContext state and actions, route guards, page-by-page behavior, all component props, styling, iframe auto-height hook; BookingPage double-submit guard; ConfirmationPage as payment redirect screen. Admin panel: App structure, Navbar tabs, CoefficientsPage (MUI table, auto-save logic, cell state machine), API client with envelope unwrapping.
 
-[.memory-bank/project_docs/development-setup.md]: Developer setup guide — prerequisites (including MongoDB), environment variables (BNOVO_BOOKING_URL added in task-3), running all three packages locally, seeding the database (`npm run seed:rooms`), all npm scripts, backend test suite (56 tests across 4 files), iframe testing.
+[.memory-bank/project_docs/development-setup.md]: Developer setup guide — prerequisites (including MongoDB), environment variables (BNOVO_BOOKING_URL added in task-3), running all three packages locally, seeding the database (`npm run seed:rooms`), all npm scripts, backend test suite (61 tests across 5 files), iframe testing.
 
 [.memory-bank/project_docs/project-commands.md]: Project-specific CLI commands — qc, build, test, format, seed:rooms, dev server, install (all three packages).
 
@@ -59,9 +59,22 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 - Admin panel authentication
 - Responsive layout (desktop-only for MVP)
 
+**task-4 — Room Ranking Algorithm MVP** — Audit passed 2026-03-22. All 61 backend tests pass (22 widget + 8 room-sync + 13 admin API + 13 booking service + 5 room-ranking).
+
+**What was added in task-4:**
+- `backend/src/services/room-ranking.ts` — `applyRoomRanking()` service: queries `coefficients` collection, sums `coefficient1 + coefficient2 + coefficient3` per room, attaches `numToShowOnFrontend` to each room. Default score `3` is used when no coefficient record exists or MongoDB is unavailable.
+- `GET /api/rooms` route now calls `applyRoomRanking()` after fetching from Bnovo; the enriched rooms (including `numToShowOnFrontend`) are what gets cached.
+- `frontend/src/types/index.ts` — `Room` interface now includes `numToShowOnFrontend?: number`.
+- `frontend/src/pages/RoomsPage.tsx` — rooms are now sorted by `numToShowOnFrontend` descending (was: by minimum plan price ascending). Fallback value `3` used when field is absent.
+- 5 new backend unit tests in `room-ranking.test.ts` using `mongodb-memory-server`.
+
 ---
 
 ## Related Files
+
+`.tasks/task-4/plan.md`: Full implementation plan for task-4.
+
+`.tasks/task-4/audits/audit-2026-03-22-00-40.md`: Task-4 audit report — AUDIT_STATUS: PASSED, TEST_STATUS: PASSED. 61 tests across 5 files.
 
 `.tasks/task-3/plan.md`: Full implementation plan for task-3.
 
@@ -94,7 +107,7 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 - **architecture.md** — Архитектура системы: три приложения (виджет, панель администратора, бэкенд), техстек, структура каталогов, модель данных MongoDB, синхронизация номеров, потоки данных (включая реальное создание бронирования и редирект на оплату), интеграция iframe.
 - **api-reference.md** — Справочник API: 5 эндпоинтов виджета + 3 admin API. POST /api/booking теперь возвращает реальные данные бронирования (bookingNumber, paymentUrl, amount). Форматы запросов/ответов, ошибки, кэш, примеры curl.
 - **frontend-guide.md** — Гайд по фронтенду: виджет (BookingContext, компоненты, iframe) + BookingPage (защита от двойной отправки) + ConfirmationPage (экран перенаправления на оплату) + панель администратора (CoeffициentsPage, auto-save, API-клиент).
-- **development-setup.md** — Настройка окружения: требования (MongoDB), переменные окружения (добавлен BNOVO_BOOKING_URL), запуск всех трёх приложений, заполнение БД, тесты (56 тестов в 4 файлах).
+- **development-setup.md** — Настройка окружения: требования (MongoDB), переменные окружения (добавлен BNOVO_BOOKING_URL), запуск всех трёх приложений, заполнение БД, тесты (61 тест в 5 файлах).
 - **project-commands.md** — CLI-команды проекта.
 
 ## Статус проекта
@@ -108,3 +121,7 @@ Documentation for the Apart-NN booking widget and admin panel. All documents are
 Добавлено в task-3: сервис `bnovo-booking.ts` (HTTP POST на reservationsteps.ru, парсинг 302-редиректа), реальная интеграция `POST /api/booking` (возвращает bookingNumber, paymentUrl, amount), переменная `BNOVO_BOOKING_URL`, обновлённый `BookingResponse`, защита от двойной отправки в BookingPage, ConfirmationPage как экран «Перенаправляем на оплату...» с `window.top.location.href` и резервной ссылкой, 13 новых тестов.
 
 Отложено: журнал бронирований в MongoDB, return URL после оплаты, проверка статуса бронирования, email-подтверждение, авторизация в панели администратора.
+
+**task-4 — Алгоритм ранжирования номеров MVP** завершён. Аудит пройден 2026-03-22. 61/61 тестов проходят.
+
+Добавлено в task-4: сервис `room-ranking.ts` (`applyRoomRanking()` — суммирует 3 коэффициента из MongoDB, добавляет `numToShowOnFrontend` к каждому номеру; дефолт: 3), интеграция в маршрут `GET /api/rooms` (обогащённые данные кешируются), поле `numToShowOnFrontend?: number` в типе `Room` фронтенда, сортировка номеров в RoomsPage по `numToShowOnFrontend` по убыванию (вместо цены), 5 новых unit-тестов.
