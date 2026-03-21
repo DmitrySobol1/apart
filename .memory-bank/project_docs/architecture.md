@@ -1,7 +1,7 @@
 ---
 description: System architecture overview for the Apart-NN booking widget and admin panel
 status: current
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Architecture — Apart-NN Booking Widget
@@ -93,6 +93,7 @@ apart-nn-develop/
 │   │   ├── services/
 │   │   │   ├── bnovo-client.ts       # Axios client for Bnovo public API
 │   │   │   ├── bnovo-booking.ts      # Booking creation: POST to reservationsteps.ru, parse 302
+│   │   │   ├── room-ranking.ts       # Room ranking: query coefficients, attach numToShowOnFrontend
 │   │   │   └── room-sync.ts          # Room sync: 10 date ranges → upsert rooms+coefficients
 │   │   ├── routes/
 │   │   │   ├── rooms.ts              # GET /api/rooms (with cache)
@@ -110,6 +111,7 @@ apart-nn-develop/
 │   │       ├── bnovo-booking.test.ts # 13 booking service + route tests
 │   │       ├── room-sync.test.ts     # 8 room sync unit tests
 │   │       ├── admin-api.test.ts     # 13 admin API integration tests
+│   │       ├── room-ranking.test.ts  # 5 room ranking unit tests
 │   │       └── setup.ts              # Vitest env setup
 │   ├── package.json
 │   ├── tsconfig.json
@@ -239,7 +241,8 @@ User fills dates + guests → clicks "Search"
     → Checks in-memory cache (key: dfrom+dto, TTL: 5 min)
     → If miss: GET public-api.reservationsteps.ru/v1/api/rooms?...
     → Unwraps response.data.rooms array
-    → Returns rooms[] array directly
+    → applyRoomRanking(): queries coefficients collection, adds numToShowOnFrontend to each room
+    → Caches enriched rooms[], returns to client
   → BookingContext stores { searchParams, rooms }
   → Navigate to /rooms
 ```
@@ -341,6 +344,10 @@ For full implementation details (useIframeResize hook, ResizeObserver, iframe de
 Две коллекции:
 - **rooms** — типы номеров из Bnovo (`bnovoId: String unique`, `name`, timestamps).
 - **coefficients** — коэффициенты per-номер (`bnovoId: String unique`, `roomId: ObjectId ref Room`, `coefficient1/2/3: Number default 1`, `updatedAt`).
+
+## Сервис ранжирования номеров (`room-ranking.ts`)
+
+`applyRoomRanking(rooms)` — вызывается в маршруте `GET /api/rooms` после получения данных из Bnovo. Запрашивает коллекцию `coefficients`, суммирует `coefficient1 + coefficient2 + coefficient3` для каждого номера и добавляет поле `numToShowOnFrontend` к каждому объекту комнаты. Если документ коэффициентов для номера отсутствует, используется значение по умолчанию `3`. При ошибке MongoDB также возвращается `3` для всех номеров, исходные поля не теряются. Обогащённый результат кешируется.
 
 ## Синхронизация номеров
 

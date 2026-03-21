@@ -1,7 +1,7 @@
 ---
 description: Local development setup, environment variables, npm scripts, and testing instructions
 status: current
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Development Setup
@@ -210,10 +210,10 @@ The test suite uses Vitest and Supertest. MongoDB integration tests use `mongodb
 cd backend && npm test
 ```
 
-Expected output (56 tests, 4 files):
+Expected output (61 tests, 5 files):
 ```
-Test Files  4 passed (4)
-     Tests  56 passed (56)
+Test Files  5 passed (5)
+     Tests  61 passed (61)
 ```
 
 **Test files:**
@@ -224,8 +224,11 @@ Test Files  4 passed (4)
 | `bnovo-booking.test.ts` | 13 | Booking service: successful booking, form field verification, non-302 response, missing Location header, malformed Location, NaN amount, missing away_url, network error; route integration: success shape, Bnovo error, invalid phone, dto before dfrom, missing fields |
 | `room-sync.test.ts` | 8 | Room sync: upsert logic, coefficient defaults, idempotency, partial failures, deduplication |
 | `admin-api.test.ts` | 13 | Admin endpoints: GET rooms/coefficients, PATCH partial update, comma normalization, 404/400 validation |
+| `room-ranking.test.ts` | 5 | Room ranking: empty input, default score when no coefficient, sum from database, mixed rooms (with/without coefficients), original fields preserved |
 
 **Test environment setup** (`backend/src/__tests__/setup.ts`): Sets all required env vars before tests run to avoid Zod config validation errors. Sets `BNOVO_BOOKING_URL` to `https://reservationsteps.ru` for booking service tests.
+
+**Mocking in `api.test.ts`:** The `room-ranking` module is mocked with `vi.mock()` — `applyRoomRanking` is replaced with a function that adds `numToShowOnFrontend: 3` to each room without touching MongoDB. The `room-ranking.test.ts` file tests the real implementation using `mongodb-memory-server`.
 
 ### Frontend Quality Check
 
@@ -344,10 +347,10 @@ cd backend && npm run seed:rooms
 ## Тесты
 
 ```bash
-cd backend && npm test  # 56 тестов: 22 виджет API + 13 booking service + 8 room-sync + 13 admin API
+cd backend && npm test  # 61 тест: 22 виджет API + 13 booking service + 8 room-sync + 13 admin API + 5 room-ranking
 ```
 
-MongoDB-тесты используют `mongodb-memory-server` — реальная база не нужна. Тесты сервиса бронирования мокируют `global.fetch` — реальных запросов к `reservationsteps.ru` нет.
+MongoDB-тесты используют `mongodb-memory-server` — реальная база не нужна. Тесты сервиса бронирования мокируют `global.fetch` — реальных запросов к `reservationsteps.ru` нет. В `api.test.ts` модуль `room-ranking` замокирован через `vi.mock()` — реальных обращений к MongoDB нет. Тесты `room-ranking.test.ts` используют `mongodb-memory-server` для проверки реальной логики суммирования коэффициентов.
 
 Качество кода:
 ```bash
