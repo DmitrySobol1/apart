@@ -1,0 +1,28 @@
+   <!DOCTYPE html>
+<head>
+   <title>Страница не найдена</title>
+   <meta name="viewport" content="width=1280">
+   <meta charset="utf-8">
+   <link href="/favicon.png" rel="icon">
+   <link href="/public/css/main.css?v=rel_51378e021079be8f40bdbe69d733eddf621468e042" rel="stylesheet">
+   <script src="/public/js/i18n-ui/ru-ru.js?v=rel_51378e021079be8f40bdbe69d733eddf621468e042"></script>
+<script src="/public/js/main_vendors.js?v=42.0006"></script>
+<script src="/public/js/main.js?v=rel_51378e021079be8f40bdbe69d733eddf621468e042"></script></head>
+<body>
+
+<div class="errors grid m-table">
+   <div class="errors__cell grid__cell">
+
+      <div class="errors__picture">
+         <img src="/public/img/design/errors_404.png" alt="">
+      </div>
+      <div class="errors__header">Ой, страница не найдена</div>
+      <div class="errors__caption">Информация об ошибке уже отправлена нам — мы уже разбираемся. <br/>
+         Вернитесь <a href="javascript:history.back()">назад</a> или перейдите на <a href="/">главную</a>.
+      </div>
+
+   </div>
+</div>
+
+</body>
+</html>

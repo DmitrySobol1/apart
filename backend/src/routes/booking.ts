@@ -17,7 +17,7 @@ const bookingSchema = z.object({
   dto: z.string().regex(DD_MM_YYYY, "dto must be in DD-MM-YYYY format"),
   planId: z.number().int().positive(),
   adults: z.number().int().min(1),
-  roomTypeId: z.string().min(1, "roomTypeId must be a non-empty string"),
+  roomTypeId: z.coerce.string().min(1, "roomTypeId must be a non-empty string"),
   guest: z.object({
     name: z.string().min(1, "guest.name must be a non-empty string"),
     surname: z.string().min(1, "guest.surname must be a non-empty string"),
