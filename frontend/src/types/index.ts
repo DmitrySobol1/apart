@@ -30,6 +30,7 @@ export interface Room {
   photos: RoomPhoto[];
   amenities: Record<string, { value: string }>;
   plans: Record<string, RoomPlan>;
+  numToShowOnFrontend?: number;
 }
 
 export interface AmenityDefinition {
